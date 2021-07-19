@@ -1,0 +1,11 @@
+# Ignore all files
+*
+
+# Unignore our init files
+!init*.el
+
+# Unignore files in the custom folder
+!custom/novarange.el
+
+# Unignore this file
+!.gitignore
