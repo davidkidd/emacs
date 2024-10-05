@@ -1,4 +1,4 @@
-;; Set our custom file setup 
+;; Set our custom file setup
 (setq custom-file (concat user-emacs-directory "custom.el"))
 (when (file-exists-p custom-file)
   (load custom-file))
@@ -15,6 +15,7 @@
 
 (unless (package-installed-p 'use-package)
   (package-install 'use-package))
+
 
 (require 'use-package)
 (setq use-package-always-ensure t)
@@ -37,10 +38,13 @@
 (global-set-key (kbd "C-M-n") 'end-of-buffer)
 (global-set-key (kbd "M-m") 'duplicate-line)
 
+;; Set default cursor type
+(setq-default cursor-type 'bar)  ;; Default to bar cursor
+
 ;; Simple theme
 (use-package mustang-theme)
 (load-theme 'mustang t)
-(set-face-attribute 'default nil :font "Fira Code Nerd Font" :height 110)
+;;(set-face-attribute 'default nil :font "Fira Code Nerd Font" :height 110)
 
 ;; Basic config
 (global-display-line-numbers-mode t)
@@ -63,7 +67,6 @@
 
 (global-set-key (kbd "C-s") 'swiper-isearch)
 (global-set-key (kbd "C-]") 'goto-line)
-(global-set-key (kbd "C-\\") 'pop-global-mark)
 
 ;; avy and colours
 (global-set-key (kbd "C-'") 'avy-goto-char)
@@ -101,3 +104,50 @@
 
 ;; Git
 (use-package magit)
+
+;; VIM binds
+(use-package evil
+  :config
+  (evil-mode 1)
+  (define-key evil-normal-state-map (kbd "C-u") 'evil-scroll-up)
+  (define-key evil-visual-state-map (kbd "C-u") 'evil-scroll-up)
+  (define-key evil-insert-state-map (kbd "C-u") 'evil-scroll-up)
+  (define-key evil-normal-state-map (kbd "C-j") 'avy-goto-char)
+  (define-key evil-visual-state-map (kbd "C-j") 'avy-goto-char)
+  )
+
+(use-package evil-terminal-cursor-changer
+  :config
+  (evil-terminal-cursor-changer-activate))
+
+(setq evil-motion-state-cursor 'box
+      evil-visual-state-cursor 'box
+      evil-normal-state-cursor 'box
+      evil-insert-state-cursor 'bar
+      evil-emacs-state-cursor 'hbar)
+
+(global-set-key (kbd "C-\\") 'evil-mode)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Uncomment for WSL - ensure xsel and xclip are installed  ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; (defun copy-to-windows-clipboard ()
+;;   (interactive)
+;;   (if (use-region-p)
+;;       (progn
+;;         (shell-command-on-region (region-beginning) (region-end) "clip.exe")
+;;         (message "Copied to Windows clipboard"))
+;;     (message "No region selected")))
+
+;; (defun paste-from-windows-clipboard ()
+;;   (interactive)
+;;   (let ((clipboard (shell-command-to-string "powershell.exe Get-Clipboard")))
+;;     (insert clipboard)))
+
+;; (global-set-key (kbd "C-c w c") 'copy-to-windows-clipboard)
+;; (global-set-key (kbd "C-c w v") 'paste-from-windows-clipboard)
+
+;; (with-eval-after-load 'evil
+;;   (define-key evil-normal-state-map (kbd "C-c w c") 'copy-to-windows-clipboard)
+;;   (define-key evil-normal-state-map (kbd "C-c w v") 'paste-from-windows-clipboard))
