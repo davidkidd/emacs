@@ -16,7 +16,6 @@
 (unless (package-installed-p 'use-package)
   (package-install 'use-package))
 
-
 (require 'use-package)
 (setq use-package-always-ensure t)
 
@@ -28,6 +27,7 @@
 (scroll-bar-mode -1)
 (tool-bar-mode -1)
 (menu-bar-mode -1)
+
 (setq ring-bell-function 'ignore)
 (delete-selection-mode 1)
 (global-set-key (kbd "C-,") 'backward-word)
@@ -37,7 +37,6 @@
 (global-set-key (kbd "C-M-p") 'beginning-of-buffer)
 (global-set-key (kbd "C-M-n") 'end-of-buffer)
 (global-set-key (kbd "M-m") 'duplicate-line)
-
 ;; Set default cursor type
 (setq-default cursor-type 'bar)  ;; Default to bar cursor
 
@@ -127,8 +126,19 @@
       evil-emacs-state-cursor 'hbar)
 
 (global-set-key (kbd "C-\\") 'evil-mode)
+;; Function to display evil-mode status
+(defun my/display-evil-status ()
+  (if evil-mode
+      " [Vi] "
+      " [Em] "))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Prepend the evil-mode status to the modeline
+(setq-default mode-line-format
+              (cons '(:eval (my/display-evil-status)) mode-line-format))
+;; Ensure the mode line updates immediately when evil-mode is toggled
+(add-hook 'evil-mode-hook 'force-mode-line-update)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Uncomment for WSL - ensure xsel and xclip are installed  ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
