@@ -37,6 +37,7 @@
 (global-set-key (kbd "C-M-p") 'beginning-of-buffer)
 (global-set-key (kbd "C-M-n") 'end-of-buffer)
 (global-set-key (kbd "M-m") 'duplicate-line)
+(global-set-key (kbd "C-c a") 'mark-whole-buffer)
 ;; Set default cursor type
 (setq-default cursor-type 'bar)  ;; Default to bar cursor
 
@@ -45,6 +46,24 @@
 (load-theme 'mustang t)
 ;;(set-face-attribute 'default nil :font "Fira Code Nerd Font" :height 110)
 
+(let ((my-bg-color "#181818"))
+  (set-face-background 'mode-line my-bg-color)
+  (set-face-background 'mode-line-buffer-id my-bg-color))
+
+(require 'color)
+(let* ((linum-face 'line-number)
+       (current-color (face-foreground linum-face nil t))
+       (dimmed-color (if current-color
+                         (color-darken-name current-color 50)
+                       "#707070")))
+  (set-face-foreground linum-face dimmed-color))
+
+(let* ((current-linum-face 'line-number-current-line)
+       (current-color (face-foreground current-linum-face nil t))
+       (less-dimmed-color (if current-color
+                         (color-lighten-name current-color 70)
+                       "#707070")))
+  (set-face-foreground current-linum-face less-dimmed-color))
 ;; Basic config
 (global-display-line-numbers-mode t)
 (setq display-line-numbers 'relative)
