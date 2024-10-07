@@ -61,8 +61,8 @@
 (let* ((current-linum-face 'line-number-current-line)
        (current-color (face-foreground current-linum-face nil t))
        (less-dimmed-color (if current-color
-                         (color-lighten-name current-color 70)
-                       "#707070")))
+                              (color-lighten-name current-color 70)
+			    "#707070")))
   (set-face-foreground current-linum-face less-dimmed-color))
 ;; Basic config
 (global-display-line-numbers-mode t)
@@ -131,8 +131,7 @@
   (define-key evil-visual-state-map (kbd "C-u") 'evil-scroll-up)
   (define-key evil-insert-state-map (kbd "C-u") 'evil-scroll-up)
   (define-key evil-normal-state-map (kbd "C-j") 'avy-goto-char)
-  (define-key evil-visual-state-map (kbd "C-j") 'avy-goto-char)
-  )
+  (define-key evil-visual-state-map (kbd "C-j") 'avy-goto-char))
 
 (use-package evil-terminal-cursor-changer
   :config
@@ -144,18 +143,31 @@
       evil-insert-state-cursor 'bar
       evil-emacs-state-cursor 'hbar)
 
-(global-set-key (kbd "C-\\") 'evil-mode)
-;; Function to display evil-mode status
+;; Define faces for Vi and Emacs mode indicators
+(defface my-vi-mode-face
+  '((t (:foreground "orange" :weight bold)))
+  "Face for Vi mode indicator.")
+
+(defface my-emacs-mode-face
+  '((t (:foreground "color-237" :weight bold)))
+  "Face for Emacs mode indicator.")
+
+;; Function to display colored evil-mode status
 (defun my/display-evil-status ()
   (if evil-mode
-      " [Vi] "
-      " [Em] "))
+      (propertize " [vi] " 'face 'my-vi-mode-face)
+    (propertize " [em] " 'face 'my-emacs-mode-face)))
+
+;; Key binding to toggle evil-mode
+(global-set-key (kbd "C-\\") 'evil-mode)
 
 ;; Prepend the evil-mode status to the modeline
 (setq-default mode-line-format
               (cons '(:eval (my/display-evil-status)) mode-line-format))
+
 ;; Ensure the mode line updates immediately when evil-mode is toggled
-(add-hook 'evil-mode-hook 'force-mode-line-update)
+(add-hook 'evil-mode-hook 'force-mode-line-update)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Uncomment for WSL - ensure xsel and xclip are installed  ;;;
