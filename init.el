@@ -38,6 +38,7 @@
 (global-set-key (kbd "C-M-n") 'end-of-buffer)
 (global-set-key (kbd "M-m") 'duplicate-line)
 (global-set-key (kbd "C-c a") 'mark-whole-buffer)
+(global-set-key (kbd "C-]") 'counsel-M-x)
 ;; Set default cursor type
 (setq-default cursor-type 'bar)  ;; Default to bar cursor
 
@@ -83,8 +84,9 @@
 	 ("C-c C-SPC" . counsel-buffer-or-recentf)
 	 ("C-c SPC" . counsel-buffer-or-recentf)))
 
+(use-package smex)
+
 (global-set-key (kbd "C-s") 'swiper-isearch)
-(global-set-key (kbd "C-]") 'goto-line)
 
 ;; avy and colours
 (global-set-key (kbd "C-'") 'avy-goto-char)
@@ -123,72 +125,8 @@
 ;; Git
 (use-package magit)
 
-;; VIM binds
-(use-package evil
-  :config
-  (evil-mode 1)
-  (define-key evil-normal-state-map (kbd "C-u") 'evil-scroll-up)
-  (define-key evil-visual-state-map (kbd "C-u") 'evil-scroll-up)
-  (define-key evil-insert-state-map (kbd "C-u") 'evil-scroll-up)
-  (define-key evil-normal-state-map (kbd "C-j") 'avy-goto-char)
-  (define-key evil-visual-state-map (kbd "C-j") 'avy-goto-char))
+;; Vim binds
+(load-file (concat user-emacs-directory "init-vi.el"))
 
-(use-package evil-terminal-cursor-changer
-  :config
-  (evil-terminal-cursor-changer-activate))
-
-(setq evil-motion-state-cursor 'box
-      evil-visual-state-cursor 'box
-      evil-normal-state-cursor 'box
-      evil-insert-state-cursor 'bar
-      evil-emacs-state-cursor 'hbar)
-
-;; Define faces for Vi and Emacs mode indicators
-(defface my-vi-mode-face
-  '((t (:foreground "orange" :weight bold)))
-  "Face for Vi mode indicator.")
-
-(defface my-emacs-mode-face
-  '((t (:foreground "color-237" :weight bold)))
-  "Face for Emacs mode indicator.")
-
-;; Function to display colored evil-mode status
-(defun my/display-evil-status ()
-  (if evil-mode
-      (propertize " [vi] " 'face 'my-vi-mode-face)
-    (propertize " [em] " 'face 'my-emacs-mode-face)))
-
-;; Key binding to toggle evil-mode
-(global-set-key (kbd "C-\\") 'evil-mode)
-
-;; Prepend the evil-mode status to the modeline
-(setq-default mode-line-format
-              (cons '(:eval (my/display-evil-status)) mode-line-format))
-
-;; Ensure the mode line updates immediately when evil-mode is toggled
-(add-hook 'evil-mode-hook 'force-mode-line-update)
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Uncomment for WSL - ensure xsel and xclip are installed  ;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; (defun copy-to-windows-clipboard ()
-;;   (interactive)
-;;   (if (use-region-p)
-;;       (progn
-;;         (shell-command-on-region (region-beginning) (region-end) "clip.exe")
-;;         (message "Copied to Windows clipboard"))
-;;     (message "No region selected")))
-
-;; (defun paste-from-windows-clipboard ()
-;;   (interactive)
-;;   (let ((clipboard (shell-command-to-string "powershell.exe Get-Clipboard")))
-;;     (insert clipboard)))
-
-;; (global-set-key (kbd "C-c w c") 'copy-to-windows-clipboard)
-;; (global-set-key (kbd "C-c w v") 'paste-from-windows-clipboard)
-
-;; (with-eval-after-load 'evil
-;;   (define-key evil-normal-state-map (kbd "C-c w c") 'copy-to-windows-clipboard)
-;;   (define-key evil-normal-state-map (kbd "C-c w v") 'paste-from-windows-clipboard))
+;; WSL settings
+(load-file (concat user-emacs-directory "init-wsl.el"))
