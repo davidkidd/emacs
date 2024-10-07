@@ -129,4 +129,4 @@
 (load-file (concat user-emacs-directory "init-vi.el"))
 
 ;; WSL settings
-(load-file (concat user-emacs-directory "init-wsl.el"))
+;;(load-file (concat user-emacs-directory "init-wsl.el"))
