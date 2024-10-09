@@ -23,10 +23,12 @@
 (fset 'yes-or-no-p 'y-or-n-p)
 (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
 (setq inhibit-startup-message t)
-(setq initial-scratch-message "")
+(setq initial-scratch-message ";; scratch\n\n")
 (scroll-bar-mode -1)
 (tool-bar-mode -1)
 (menu-bar-mode -1)
+(setq split-height-threshold nil)
+(setq split-width-threshold 80)
 
 (setq ring-bell-function 'ignore)
 (delete-selection-mode 1)
@@ -39,13 +41,14 @@
 (global-set-key (kbd "M-m") 'duplicate-line)
 (global-set-key (kbd "C-c a") 'mark-whole-buffer)
 (global-set-key (kbd "C-]") 'counsel-M-x)
+
 ;; Set default cursor type
 (setq-default cursor-type 'bar)  ;; Default to bar cursor
 
 ;; Simple theme
 (use-package mustang-theme)
 (load-theme 'mustang t)
-;;(set-face-attribute 'default nil :font "Fira Code Nerd Font" :height 110)
+(set-face-attribute 'default nil :font "Fira Code Nerd Font" :height 110)
 
 (let ((my-bg-color "#181818"))
   (set-face-background 'mode-line my-bg-color)
