@@ -1,3 +1,7 @@
+;; Visually distinct modeline to show the state (Evil or Emacs) and
+;; a convenient keybind for toggling. Does not do any automatic switching
+;; or special configuration for modes.
+
 (use-package evil
   :config
   (evil-mode 1)
@@ -8,6 +12,23 @@
   (define-key evil-normal-state-map (kbd "C-j") 'avy-goto-char)
   (define-key evil-visual-state-map (kbd "C-j") 'avy-goto-char))
 
+;; Key binding to toggle evil-mode
+(global-set-key (kbd "C-\\") 'evil-mode)
+
+;; Set active mode-line colors
+(set-face-attribute 'mode-line nil
+                    :background "DarkOrange1"
+                    :foreground "black")
+
+;; Set inactive mode-line colors
+(set-face-attribute 'mode-line-inactive nil
+                    :background "gray30"
+                    :foreground "gray80")
+
+(set-face-attribute 'mode-line-buffer-id nil
+		    :background 'unspecified
+		    :foreground 'unspecified)
+
 (use-package evil-terminal-cursor-changer
   :config
   (evil-terminal-cursor-changer-activate))
@@ -16,51 +37,61 @@
       evil-visual-state-cursor 'box
       evil-normal-state-cursor 'box
       evil-insert-state-cursor 'bar
-      evil-emacs-state-cursor 'box)  ; Changed from 'hbar to 'box
+      evil-emacs-state-cursor 'box)
 
-(defface my-vi-mode-face
-  '((t (:foreground "orange" :weight bold)))
-  "Face for VI mode indicator.")
-
-(defface my-emacs-mode-face
-  '((t (:foreground "grey22" :weight bold)))
-  "Face for Emacs mode indicator.")
+(defvar my-evil-modeline-colors
+  '((normal . (:background "DarkOrange1" :foreground "black"))
+    (insert . (:background "DarkOrange1" :foreground "black"))
+    (visual . (:background "DarkOrange1" :foreground "black"))
+    (emacs . (:background "grey22" :foreground "white"))
+    (motion . (:background "DarkOrange1" :foreground "black"))
+    (replace . (:background "DarkOrange1" :foreground "black"))
+    (operator . (:background "DarkOrange1" :foreground "black")))
+  "Modeline colors (background and foreground) for different evil states.")
 
 (defvar my-evil-cursor-colors
-  '((normal . "orange")
-    (insert . "orange")
-    (emacs . "grey"))
+  '((normal . "DarkOrange1")
+    (insert . "DarkOrange1")
+    (visual . "DarkOrange1")
+    (emacs . "grey")
+    (motion . "DarkOrange1")
+    (replace . "DarkOrange1")
+    (operator . "DarkOrange1"))
   "Cursor colors for different evil states.")
 
 (defvar my-evil-cursor-shapes
   '((normal . box)
     (insert . bar)
-    (emacs . box))
+    (visual . box)
+    (emacs . box)
+    (motion . box)
+    (replace . hbar)
+    (operator . hollow))
   "Cursor shapes for different evil states.")
 
-(defun my/update-cursor ()
-  "Update cursor color and shape based on evil state."
-  (let* ((state (or evil-state 'emacs))
-         (color (cdr (assq state my-evil-cursor-colors)))
-         (shape (cdr (assq state my-evil-cursor-shapes))))
-    (set-cursor-color color)
-    (setq cursor-type shape)))
+(defun my/update-cursor-and-modeline (&rest _)
+  "Update cursor color and shape, and modeline colors based on evil state."
+  (let* ((state (if evil-mode
+                    (or evil-state 'normal)
+                  'emacs))
+         (cursor-color (or (cdr (assq state my-evil-cursor-colors)) "DarkOrange1"))
+         (cursor-shape (or (cdr (assq state my-evil-cursor-shapes)) 'box))
+         (modeline-colors (or (cdr (assq state my-evil-modeline-colors)) 
+                              '(:background "DarkOrange1" :foreground "black"))))
+    (when (stringp cursor-color)
+      (set-cursor-color cursor-color))
+    (setq cursor-type cursor-shape)
+    (set-face-background 'mode-line (plist-get modeline-colors :background))
+    (set-face-foreground 'mode-line (plist-get modeline-colors :foreground))
+    (set-face-background 'mode-line-inactive "gray30")
+    (set-face-foreground 'mode-line-inactive "gray80")
+))
 
-(defun my/display-evil-status ()
-  "Display colored evil-mode status and update cursor."
-  (my/update-cursor)
-  (if evil-mode
-      (propertize " [vi] " 'face 'my-vi-mode-face)
-    (propertize " [vi] " 'face 'my-emacs-mode-face)))
-
-(add-hook 'post-command-hook #'my/update-cursor)
-
-;; Key binding to toggle evil-mode
-(global-set-key (kbd "C-\\") 'evil-mode)
-
-;; Prepend the evil-mode status to the modeline
-(setq-default mode-line-format
-              (cons '(:eval (my/display-evil-status)) mode-line-format))
+(add-hook 'post-command-hook #'my/update-cursor-and-modeline)
+(add-hook 'evil-mode-hook #'my/update-cursor-and-modeline)
 
 ;; Ensure the mode line updates immediately when evil-mode is toggled
-(add-hook 'evil-mode-hook 'force-mode-line-update)
+(advice-add 'evil-mode :after #'my/update-cursor-and-modeline)
+
+;; Call the update so it syncs up
+(my/update-cursor-and-modeline)
