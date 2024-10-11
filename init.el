@@ -29,18 +29,11 @@
 (menu-bar-mode -1)
 (setq split-height-threshold nil)
 (setq split-width-threshold 80)
-
 (setq ring-bell-function 'ignore)
 (delete-selection-mode 1)
-(global-set-key (kbd "C-,") 'backward-word)
-(global-set-key (kbd "C-.") 'forward-word)
-(global-set-key (kbd "M-p") 'scroll-down-command)
-(global-set-key (kbd "M-n") 'scroll-up-command)
-(global-set-key (kbd "C-M-p") 'beginning-of-buffer)
-(global-set-key (kbd "C-M-n") 'end-of-buffer)
-(global-set-key (kbd "M-m") 'duplicate-line)
+(global-set-key (kbd "C-c C-a") 'mark-whole-buffer)
 (global-set-key (kbd "C-c a") 'mark-whole-buffer)
-(global-set-key (kbd "C-]") 'counsel-M-x)
+global-set-key (kbd "C-]") 'counsel-M-x)
 
 ;; Set default cursor type
 (setq-default cursor-type 'bar)  ;; Default to bar cursor
@@ -93,7 +86,6 @@
 
 ;; avy and colours
 (global-set-key (kbd "C-'") 'avy-goto-char)
-(global-set-key (kbd "C-;") 'avy-goto-char-in-line)
 (custom-set-faces
  '(avy-lead-face ((t (:foreground "black" :background "white"))))
  '(avy-lead-face-0 ((t (:foreground "white" :background "orange"))))
