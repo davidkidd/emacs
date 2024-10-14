@@ -1,4 +1,5 @@
 ;; Set our custom file setup
+
 (setq custom-file (concat user-emacs-directory "custom.el"))
 (when (file-exists-p custom-file)
   (load custom-file))
@@ -33,7 +34,24 @@
 (delete-selection-mode 1)
 (global-set-key (kbd "C-c C-a") 'mark-whole-buffer)
 (global-set-key (kbd "C-c a") 'mark-whole-buffer)
-global-set-key (kbd "C-]") 'counsel-M-x)
+(global-set-key (kbd "C-]") 'counsel-M-x)
+
+(use-package bind-key
+  :config
+  (bind-key* "C-]" 'counsel-M-x))  ;; The * ensures this binding is global and can't be overridden
+
+;; Automatically switch to new window after vsplit
+(defun split-and-follow-horizontally ()
+  (interactive)
+  (split-window-below)
+  (balance-windows)
+  (other-window 1))
+(global-set-key (kbd "C-x 2") 'split-and-follow-horizontally)
+
+;; Automatically focus on compilation buffer
+(defadvice compile (after switch-to-compile-buffer activate)
+  "Switch to the compilation buffer after compilation starts."
+  (switch-to-buffer-other-window "*compilation*"))
 
 ;; Set default cursor type
 (setq-default cursor-type 'bar)  ;; Default to bar cursor
@@ -61,6 +79,7 @@ global-set-key (kbd "C-]") 'counsel-M-x)
                               (color-lighten-name current-color 70)
 			    "#707070")))
   (set-face-foreground current-linum-face less-dimmed-color))
+
 ;; Basic config
 (global-display-line-numbers-mode t)
 (setq display-line-numbers 'relative)
@@ -125,3 +144,30 @@ global-set-key (kbd "C-]") 'counsel-M-x)
 
 ;; WSL settings
 ;;(load-file (concat user-emacs-directory "init-wsl.el"))
+
+;; LSP
+(use-package lsp-mode
+  :hook ((csharp-mode . lsp-deferred)
+	 (asm-mode . lsp-deferred)))
+
+(use-package flycheck)
+
+(use-package lsp-ui
+  :ensure t
+  :after lsp-mode
+  :hook (lsp-mode . lsp-ui-mode)
+  :config
+  ;; Enable sideline for diagnostics only
+  (setq lsp-ui-sideline-enable t
+        lsp-ui-sideline-show-hover nil        ;; Disable hover information
+        lsp-ui-sideline-show-symbol nil       ;; Disable symbol information
+        lsp-ui-sideline-show-diagnostics t    ;; Enable diagnostics display
+        lsp-ui-sideline-update-mode 'point
+
+        ;; Disable documentation popups if not needed
+        lsp-ui-doc-enable nil
+       ) 
+
+  ;; Optional: Customize the appearance
+  (setq lsp-ui-doc-border "gray"
+        lsp-ui-sideline-ignore-duplicate t))

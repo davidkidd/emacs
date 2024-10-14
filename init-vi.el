@@ -4,25 +4,30 @@
 
 (use-package evil
   :config
-  (evil-mode 1)
+  (define-key evil-normal-state-map (kbd "C-]") 'counsel-M-x)
+  (define-key evil-insert-state-map (kbd "C-]") 'counsel-M-x)
+  (define-key evil-visual-state-map (kbd "C-]") 'counsel-M-x)
+  (define-key evil-motion-state-map (kbd "C-]") 'counsel-M-x)
   (define-key evil-normal-state-map (kbd "C-u") 'evil-scroll-up)
   (define-key evil-visual-state-map (kbd "C-u") 'evil-scroll-up)
   (define-key evil-insert-state-map (kbd "C-u") 'evil-scroll-up)
-  (define-key evil-normal-state-map (kbd "C-]") 'counsel-M-x)
   (define-key evil-normal-state-map (kbd "C-j") 'avy-goto-char)
   (define-key evil-visual-state-map (kbd "C-j") 'avy-goto-char))
+
+;; Make q cancel out of view mode
+(add-hook 'view-mode-hook 'evil-motion-state)
 
 ;; Key binding to toggle evil-mode
 (global-set-key (kbd "C-\\") 'evil-mode)
 
 ;; Set active mode-line colors
 (set-face-attribute 'mode-line nil
-                    :background "DarkOrange1"
-                    :foreground "black")
+                    :foreground "DarkOrange1"
+                    :background "gray10")
 
 ;; Set inactive mode-line colors
 (set-face-attribute 'mode-line-inactive nil
-                    :background "gray30"
+                    :background "#181818"
                     :foreground "gray80")
 
 (set-face-attribute 'mode-line-buffer-id nil
@@ -40,13 +45,13 @@
       evil-emacs-state-cursor 'box)
 
 (defvar my-evil-modeline-colors
-  '((normal . (:background "DarkOrange1" :foreground "black"))
-    (insert . (:background "DarkOrange1" :foreground "black"))
-    (visual . (:background "DarkOrange1" :foreground "black"))
+  '((normal . (:foreground "DarkOrange1" :background "gray10"))
+    (insert . (:foreground "DarkOrange1" :background "gray10"))
+    (visual . (:foreground "DarkOrange1" :background "gray10"))
     (emacs . (:background "grey22" :foreground "white"))
-    (motion . (:background "DarkOrange1" :foreground "black"))
-    (replace . (:background "DarkOrange1" :foreground "black"))
-    (operator . (:background "DarkOrange1" :foreground "black")))
+    (motion . (:foreground "DarkOrange1" :background "gray10"))
+    (replace . (:foreground "DarkOrange1" :background "gray10"))
+    (operator . (:foreground "DarkOrange1" :background "gray10")))
   "Modeline colors (background and foreground) for different evil states.")
 
 (defvar my-evil-cursor-colors
@@ -71,26 +76,26 @@
 
 (defun my/update-cursor-and-modeline (&rest _)
   "Update cursor color and shape, and modeline colors based on evil state."
-  (let* ((state (if evil-mode
-                    (or evil-state 'normal)
-                  'emacs))
+(let* ((state (if (bound-and-true-p evil-mode)
+                  (or evil-state 'normal)
+                'emacs))
          (cursor-color (or (cdr (assq state my-evil-cursor-colors)) "DarkOrange1"))
          (cursor-shape (or (cdr (assq state my-evil-cursor-shapes)) 'box))
          (modeline-colors (or (cdr (assq state my-evil-modeline-colors)) 
-                              '(:background "DarkOrange1" :foreground "black"))))
+                              '(:foreground "DarkOrange1" :background "gray10"))))
     (when (stringp cursor-color)
       (set-cursor-color cursor-color))
     (setq cursor-type cursor-shape)
     (set-face-background 'mode-line (plist-get modeline-colors :background))
     (set-face-foreground 'mode-line (plist-get modeline-colors :foreground))
-    (set-face-background 'mode-line-inactive "gray30")
+    (set-face-background 'mode-line-inactive "#181818")
     (set-face-foreground 'mode-line-inactive "gray80")
 ))
 
 (add-hook 'post-command-hook #'my/update-cursor-and-modeline)
 (add-hook 'evil-mode-hook #'my/update-cursor-and-modeline)
 
-;; Ensure the mode line updates immediately when evil-mode is toggled
+;; Ensure the mode line updates immediately when d
 (advice-add 'evil-mode :after #'my/update-cursor-and-modeline)
 
 ;; Call the update so it syncs up
