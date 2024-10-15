@@ -35,18 +35,11 @@
   (define-key evil-normal-state-map (kbd "C-j") 'avy-goto-char)
   (define-key evil-visual-state-map (kbd "C-j") 'avy-goto-char))
 
-;; Enable evil-local-mode in text-based modes
-(dolist (hook '(text-mode-hook
-                prog-mode-hook
-                org-mode-hook
-                markdown-mode-hook))
-  (add-hook hook #'evil-local-mode))
-
 ;; Make q cancel out of view mode
 (add-hook 'view-mode-hook 'evil-motion-state)
 
 ;; Allow a keybind for edge or stuck cases
-(global-set-key (kbd "C-\\") 'evil-local-mode)
+(global-set-key (kbd "C-\\") 'evil-mode)
 
 ;; Set active mode-line colors
 (set-face-attribute 'mode-line nil
@@ -106,7 +99,7 @@
 
 (defun my/update-cursor-and-modeline (&rest _)
   "Update cursor color and shape, and modeline colors based on evil state."
-  (let* ((state (if (bound-and-true-p evil-local-mode)
+  (let* ((state (if (bound-and-true-p evil-mode)
                     (or evil-state 'normal)
                   'emacs))
          (cursor-color (or (cdr (assoc state my-evil-cursor-colors)) my-color-dark-orange))
@@ -119,13 +112,22 @@
     (set-face-background 'mode-line (plist-get modeline-colors :background))
     (set-face-foreground 'mode-line (plist-get modeline-colors :foreground))
     (set-face-background 'mode-line-inactive my-color-background-inactive)
-    (set-face-foreground 'mode-line-inactive my-color-gray80)))
+    (set-face-foreground 'mode-line-inactive my-color-gray80)
+    (force-mode-line-update t)
+    (redraw-display)))
 
 (add-hook 'post-command-hook #'my/update-cursor-and-modeline)
-(add-hook 'evil-local-mode-hook #'my/update-cursor-and-modeline)
-
+(add-hook 'evil-mode-hook #'my/update-cursor-and-modeline)
+;; Add hooks for Evil state changes
+(add-hook 'evil-normal-state-entry-hook #'my/update-cursor-and-modeline)
+(add-hook 'evil-insert-state-entry-hook #'my/update-cursor-and-modeline)
+(add-hook 'evil-visual-state-entry-hook #'my/update-cursor-and-modeline)
+(add-hook 'evil-motion-state-entry-hook #'my/update-cursor-and-modeline)
+(add-hook 'evil-emacs-state-entry-hook #'my/update-cursor-and-modeline)
+(add-hook 'evil-replace-state-entry-hook #'my/update-cursor-and-modeline)
+(add-hook 'evil-operator-state-entry-hook #'my/update-cursor-and-modeline)
 ;; Ensure the mode line updates immediately when evil-mode changes
-(advice-add 'evil-local-mode :after #'my/update-cursor-and-modeline)
+(advice-add 'evil-mode :after #'my/update-cursor-and-modeline)
 
 ;; Call the update so it syncs up
-;;(my/update-cursor-and-modeline)
+(my/update-cursor-and-modeline)

@@ -1,10 +1,11 @@
 ;; Set our custom file setup
+;; Add the "custom" directory to the load path
+(defconst custom-dir (expand-file-name "custom" user-emacs-directory)
+  "Full path to the custom configuration directory.")
+(add-to-list 'load-path custom-dir)
+(setq custom-file (expand-file-name "custom.el" custom-dir))
 
-(setq custom-file (concat user-emacs-directory "custom.el"))
-(when (file-exists-p custom-file)
-  (load custom-file))
-
-;; Set our package management
+;; Set up our package management
 (require 'package)
 
 (setq gnutls-algorithm-priority "NORMAL:-VERS-TLS1.3")
@@ -38,7 +39,7 @@
 
 (use-package bind-key
   :config
-  (bind-key* "C-]" 'counsel-M-x))  ;; The * ensures this binding is global and can't be overridden
+  (bind-key* "C-]" 'counsel-M-x))
 
 ;; Automatically switch to new window after vsplit
 (defun split-and-follow-horizontally ()
@@ -47,6 +48,7 @@
   (balance-windows)
   (other-window 1))
 (global-set-key (kbd "C-x 2") 'split-and-follow-horizontally)
+
 
 ;; Automatically focus on compilation buffer
 (defadvice compile (after switch-to-compile-buffer activate)
@@ -57,13 +59,12 @@
 (setq-default cursor-type 'bar)  ;; Default to bar cursor
 
 ;; Simple theme
-(use-package mustang-theme)
-(load-theme 'mustang t)
-(set-face-attribute 'default nil :font "Fira Code Nerd Font" :height 110)
+(use-package novarange-theme
+  :ensure nil  ;; Indicates that the package is not available via package repositories
+  :config
+  (load-theme 'novarange t))  ;; Loads and activates the theme without confirmation
 
-(let ((my-bg-color "#181818"))
-  (set-face-background 'mode-line my-bg-color)
-  (set-face-background 'mode-line-buffer-id my-bg-color))
+(set-face-attribute 'default nil :font "Fira Code Nerd Font" :height 110)
 
 (require 'color)
 (let* ((linum-face 'line-number)
@@ -131,43 +132,18 @@
 (use-package company-prescient
   :init (company-prescient-mode))
 
-;; Terminal
-(use-package vterm)
-(add-hook 'vterm-mode-hook (lambda ()
-                             (display-line-numbers-mode -1)))
-
 ;; Git
 (use-package magit)
 
+;; Add optional features here.
+;; Usually depend on heavily on preference (eg vim) and/or environment.
+;; In either case, will probably need customisation to get working.
+
 ;; Vim binds
-(load-file (concat user-emacs-directory "init-vi.el"))
+;;(load-file (concat user-emacs-directory "init-vi.el"))
 
 ;; WSL settings
 ;;(load-file (concat user-emacs-directory "init-wsl.el"))
 
 ;; LSP
-(use-package lsp-mode
-  :hook ((csharp-mode . lsp-deferred)
-	 (asm-mode . lsp-deferred)))
-
-(use-package flycheck)
-
-(use-package lsp-ui
-  :ensure t
-  :after lsp-mode
-  :hook (lsp-mode . lsp-ui-mode)
-  :config
-  ;; Enable sideline for diagnostics only
-  (setq lsp-ui-sideline-enable t
-        lsp-ui-sideline-show-hover nil        ;; Disable hover information
-        lsp-ui-sideline-show-symbol nil       ;; Disable symbol information
-        lsp-ui-sideline-show-diagnostics t    ;; Enable diagnostics display
-        lsp-ui-sideline-update-mode 'point
-
-        ;; Disable documentation popups if not needed
-        lsp-ui-doc-enable nil
-       ) 
-
-  ;; Optional: Customize the appearance
-  (setq lsp-ui-doc-border "gray"
-        lsp-ui-sideline-ignore-duplicate t))
+;;(load-file (concat user-emacs-directory "init-lsp.el"))
