@@ -21,7 +21,7 @@
 (setq ivy-posframe-border-width 16)
 
 (custom-set-faces
- '(ivy-posframe ((t (:background "grey20"))))
- '(ivy-posframe-border ((t (:background "grey20")))))
+ '(ivy-posframe ((t (:background "grey15"))))
+ '(ivy-posframe-border ((t (:background "grey15")))))
 
 (ivy-posframe-mode 1)

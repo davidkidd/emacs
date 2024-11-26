@@ -34,6 +34,7 @@
 (setq inhibit-startup-message t
       initial-scratch-message ";; scratch\n\n"
       split-height-threshold nil
+      delete-by-moving-to-trash t
       quit-restore-window-configuration nil
       split-width-threshold 80
       ring-bell-function 'ignore
@@ -117,7 +118,8 @@
     (beginning-of-line)
     (let ((start (point)))
       (forward-line)
-      (kill-ring-save start (point)))))
+      (kill-ring-save start (point))
+      (message "Copied whole line"))))
 
 (global-set-key (kbd "C-c w") 'copy-current-line)
 
@@ -129,7 +131,7 @@
 ;; Set default cursor type
 (setq-default cursor-type 'bar)  ;; Default to bar cursor
 
-(set-face-attribute 'default nil :font "Fira Code Nerd Font" :height 110)
+(set-face-attribute 'default nil :font "Fira Code Nerd Font" :height 95)
 
 (require 'color)
 (let* ((linum-face 'line-number)
@@ -220,6 +222,63 @@
 (use-package vterm
   :hook (vterm-mode . (lambda ()
                         (setq-local global-hl-line-mode nil))))
+
+;; Better proced
+(use-package proced-narrow
+  :ensure t
+  :after proced
+  :bind (:map proced-mode-map
+              ("/" . proced-narrow)))
+
+
+;; Window helper
+(defun my-window-split-function ()
+  "Custom window split function.
+1. If one window is visible, create a vertical split at 2/3 of the frame width.
+2. If two windows are visible, ensure they are vertically split at 2/3.
+3. If three windows are visible, display an error and do nothing."
+  (interactive)
+  (let ((num-windows (count-windows)))
+    (cond
+     ;; Case 1: Single Window
+     ((= num-windows 1)
+      (let* ((frame-width (frame-width))
+             (split-ratio (/ 2.0 3)) ; 2/3 as a floating-point number
+             (split-size (floor (* split-ratio frame-width))))
+        (split-window-right split-size)
+        ;; Optional: Move focus to the new window
+        (other-window 1)))
+
+     ;; Case 2: Two Windows
+     ((= num-windows 2)
+      (if (window-combined-p (selected-window) t)
+          ;; If already vertically split, adjust the split
+          (let* ((desired-size (/ 2.0 3))
+                 (desired-width (floor (* desired-size (frame-width))))
+                 (current-width (window-width (selected-window)))
+                 (delta (- desired-width current-width)))
+            (unless (= delta 0)
+              (adjust-window-trailing-edge (selected-window) delta t)))
+        ;; If not split vertically, re-split vertically at 2/3
+        (progn
+          (delete-other-windows)
+          (let* ((frame-width (frame-width))
+                 (split-ratio (/ 2.0 3))
+                 (split-size (floor (* split-ratio frame-width))))
+            (split-window-right split-size)
+            ;; Optional: Move focus to the new window
+            (other-window 1)))))
+
+     ;; Case 3: Three Windows
+     ((= num-windows 3)
+      (message "Error: Maximum of two windows allowed."))
+
+     ;; Any Other Case
+     (t
+      (message "Error: Maximum of two windows allowed.")))))
+
+
+(global-set-key (kbd "C-x w t") 'my-window-split-function)
 
 ;; Add optional features here.
 ;; Usually depend on heavily on preference (eg vim) and/or environment.

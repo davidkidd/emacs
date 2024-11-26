@@ -16,6 +16,44 @@
   (define-key dired-sidebar-mode-map (kbd "h") 'dired-sidebar-up-directory)
   (define-key dired-sidebar-mode-map (kbd "l") 'dired-sidebar-find-file))
 
+;; Ensure that vterm and dired are loaded
+(require 'vterm)
+(require 'dired)
+
+(defun dired-vterm ()
+  "Open a vterm buffer in the current Dired directory, replacing the Dired buffer.
+If a *vterm* buffer exists, change its directory to the current Dired path and switch to it.
+Otherwise, create a new vterm buffer in the current Dired directory and switch to it."
+  (interactive)
+  (let* ((current-dir (dired-current-directory))
+         (vterm-buffer-name "*vterm*")
+         (vterm-buffer (get-buffer vterm-buffer-name)))
+    (if vterm-buffer
+        ;; If *vterm* buffer exists, change its directory and switch to it
+        (progn
+          (with-current-buffer vterm-buffer
+            ;; Change directory in vterm
+            (vterm-send-string (concat "cd " (shell-quote-argument current-dir)))
+            (vterm-send-return))
+          ;; Replace the current Dired buffer with the existing vterm buffer
+          (switch-to-buffer vterm-buffer))
+      ;; If *vterm* doesn't exist, create it in current-dir and switch to it
+      (let ((new-vterm (vterm current-dir)))
+        ;; Optionally, rename the buffer to *vterm* for consistency
+        (rename-buffer vterm-buffer-name)
+        ;; Replace the current Dired buffer with the new vterm buffer
+        (switch-to-buffer new-vterm)))))
+
+(with-eval-after-load 'dired
+  (define-key dired-mode-map (kbd "C-c t") 'dired-vterm))
+
+;; Copy full path at point
+(defun dired-copy-path-at-point ()
+  (interactive)
+  (dired-copy-filename-as-kill 0))
+
+(define-key dired-mode-map (kbd "W") 'dired-copy-path-at-point)
+
 ;; Set the dired view with ls switches
 (setq dired-listing-switches "--group-directories-first -alh")
 
@@ -115,3 +153,5 @@ Otherwise, create a new split and open target directory there."
 
 (with-eval-after-load 'dired
   (define-key dired-mode-map (kbd "C-c x") 'dired-execute-file))
+
+
