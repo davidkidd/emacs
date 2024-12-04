@@ -171,7 +171,7 @@
 
 (use-package smex)
 
-(global-set-key (kbd "C-s") 'swiper-isearch)
+(global-set-key (kbd "C-s") 'swiper-thing-at-point)
 
 ;; avy and colours
 (global-set-key (kbd "C-'") 'avy-goto-char)
