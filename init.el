@@ -131,7 +131,13 @@
 ;; Set default cursor type
 (setq-default cursor-type 'bar)  ;; Default to bar cursor
 
-(set-face-attribute 'default nil :font "Fira Code Nerd Font" :height 95)
+;; Set font if we have it 
+(let ((desired-font "Fira Code Nerd Font")
+      (font-size 95))
+  (if (find-font (font-spec :name desired-font))
+      (set-face-attribute 'default nil :font desired-font :height font-size)
+    (message "Desired font \"%s\" not found." desired-font)))
+  
 
 (require 'color)
 (let* ((linum-face 'line-number)
@@ -165,7 +171,7 @@
 
 ;; search, narrowing
 (use-package counsel
-  :init (ivy-mode 1)
+  :init (ivy-mode 1) 
   :bind (("M-x" . counsel-M-x)
 	 ("C-c SPC" . counsel-buffer-or-recentf)))
 
