@@ -20,7 +20,7 @@
   (lsp-keep-workspace-alive nil)
   (lsp-eldoc-hook nil)
   (setq lsp-response-timeout 30
-        lsp-log-io nil
+        ;;lsp-log-io nil
         lsp-diagnostics-provider :flycheck
         flycheck-checker-error-threshold 1000
         read-process-output-max (* 1024 1024) 
@@ -84,6 +84,13 @@
 
 (use-package company-box
   :hook (company-mode . company-box-mode))
+
+
+;; Customize clangd arguments
+(setq lsp-clients-clangd-args '("--clang-tidy" "--background-index" "--log=verbose"))
+
+;; Enable logging
+(setq lsp-log-io t)
 
 ;; Uncomment and set the path to clangd if necessary
 ;; (setq lsp-clients-clangd-executable "/path/to/clangd")
