@@ -1,3 +1,10 @@
+;; Make sure it sees our path
+(use-package exec-path-from-shell
+  :ensure t
+  :config
+  (exec-path-from-shell-initialize))
+
+
 ;; Set our custom file setup
 ;; Add the "custom" directory to the load path
 (defconst custom-dir (expand-file-name "custom" user-emacs-directory)
@@ -39,6 +46,8 @@
       split-width-threshold 80
       ring-bell-function 'ignore
       scroll-margin 7)
+
+(electric-pair-mode 1)
 
 (fset 'yes-or-no-p 'y-or-n-p)
 (delete-selection-mode 1)
@@ -123,21 +132,23 @@
 
 (global-set-key (kbd "C-c w") 'copy-current-line)
 
-;; Automatically focus on compilation buffer
-(defadvice compile (after switch-to-compile-buffer activate)
-  "Switch to the compilation buffer after compilation starts."
-  (switch-to-buffer-other-window "*compilation*"))
 
 ;; Set default cursor type
 (setq-default cursor-type 'bar)  ;; Default to bar cursor
 
 ;; Set font if we have it 
-(let ((desired-font "Fira Code Nerd Font")
-      (font-size 95))
+(let ((desired-font "FiraCode Nerd Font")
+      (font-size 100))
   (if (find-font (font-spec :name desired-font))
       (set-face-attribute 'default nil :font desired-font :height font-size)
     (message "Desired font \"%s\" not found." desired-font)))
-  
+
+;; ;; Additional optimizations to reduce latency
+;;(setq redisplay-dont-pause nil)
+;; (setq inhibit-compacting-font-caches t)
+;; (setq frame-inhibit-implied-resize t)
+(setq-default line-spacing 2)
+;; (setq face-ignored-fonts '("default"))
 
 (require 'color)
 (let* ((linum-face 'line-number)
@@ -177,7 +188,8 @@
 
 (use-package smex)
 
-(global-set-key (kbd "C-s") 'swiper-thing-at-point)
+(global-set-key (kbd "C-s") 'swiper)
+(global-set-key (kbd "C-S-s") 'swiper-thing-at-point)
 
 ;; avy and colours
 (global-set-key (kbd "C-'") 'avy-goto-char)
@@ -224,11 +236,6 @@
 ;; Git
 (use-package magit)
 
-;; Vterm
-(use-package vterm
-  :hook (vterm-mode . (lambda ()
-                        (setq-local global-hl-line-mode nil))))
-
 ;; Better proced
 (use-package proced-narrow
   :ensure t
@@ -236,62 +243,12 @@
   :bind (:map proced-mode-map
               ("/" . proced-narrow)))
 
-
-;; Window helper
-(defun my-window-split-function ()
-  "Custom window split function.
-1. If one window is visible, create a vertical split at 2/3 of the frame width.
-2. If two windows are visible, ensure they are vertically split at 2/3.
-3. If three windows are visible, display an error and do nothing."
-  (interactive)
-  (let ((num-windows (count-windows)))
-    (cond
-     ;; Case 1: Single Window
-     ((= num-windows 1)
-      (let* ((frame-width (frame-width))
-             (split-ratio (/ 2.0 3)) ; 2/3 as a floating-point number
-             (split-size (floor (* split-ratio frame-width))))
-        (split-window-right split-size)
-        ;; Optional: Move focus to the new window
-        (other-window 1)))
-
-     ;; Case 2: Two Windows
-     ((= num-windows 2)
-      (if (window-combined-p (selected-window) t)
-          ;; If already vertically split, adjust the split
-          (let* ((desired-size (/ 2.0 3))
-                 (desired-width (floor (* desired-size (frame-width))))
-                 (current-width (window-width (selected-window)))
-                 (delta (- desired-width current-width)))
-            (unless (= delta 0)
-              (adjust-window-trailing-edge (selected-window) delta t)))
-        ;; If not split vertically, re-split vertically at 2/3
-        (progn
-          (delete-other-windows)
-          (let* ((frame-width (frame-width))
-                 (split-ratio (/ 2.0 3))
-                 (split-size (floor (* split-ratio frame-width))))
-            (split-window-right split-size)
-            ;; Optional: Move focus to the new window
-            (other-window 1)))))
-
-     ;; Case 3: Three Windows
-     ((= num-windows 3)
-      (message "Error: Maximum of two windows allowed."))
-
-     ;; Any Other Case
-     (t
-      (message "Error: Maximum of two windows allowed.")))))
-
-
-(global-set-key (kbd "C-x w t") 'my-window-split-function)
-
 ;; Add optional features here.
 ;; Usually depend on heavily on preference (eg vim) and/or environment.
 ;; In either case, will probably need customisation to get working.
 
-;; WSL settings
-;;(load-file (concat user-emacs-directory "init-wsl.el"))
+;; Compile mode
+(load-file (concat user-emacs-directory "init-compile.el"))
 
 ;; Zen
 (load-file (concat user-emacs-directory "init-zen.el"))
