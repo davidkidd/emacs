@@ -198,17 +198,16 @@
   :init (projectile-mode 1))
 (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
 (setq projectile-indexing-method 'alien)
-(with-eval-after-load 'projectile
-  (add-to-list 'projectile-globally-ignored-files "*~"))
-
 
 (use-package counsel-projectile
   :after projectile  ; ensures Projectile loads first
   :config
   (counsel-projectile-mode 1))
 
+;; Ignore ~ and cached files (eg clangd)
 (with-eval-after-load 'counsel
-  (setq counsel-find-file-ignore-regexp "\\(~\\)$"))
+  (setq counsel-find-file-ignore-regexp "\\(~\\)$\\|\\.cache/clangd/"))
+
 
 (use-package company
   :bind (:map company-active-map
