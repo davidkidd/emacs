@@ -4,7 +4,6 @@
   :config
   (exec-path-from-shell-initialize))
 
-
 ;; Set our custom file setup
 ;; Add the "custom" directory to the load path
 (defconst custom-dir (expand-file-name "custom" user-emacs-directory)
@@ -142,13 +141,6 @@
   (if (find-font (font-spec :name desired-font))
       (set-face-attribute 'default nil :font desired-font :height font-size)
     (message "Desired font \"%s\" not found." desired-font)))
-
-;; ;; Additional optimizations to reduce latency
-;;(setq redisplay-dont-pause nil)
-;; (setq inhibit-compacting-font-caches t)
-;; (setq frame-inhibit-implied-resize t)
-(setq-default line-spacing 2)
-;; (setq face-ignored-fonts '("default"))
 
 (require 'color)
 (let* ((linum-face 'line-number)
