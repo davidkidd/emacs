@@ -47,6 +47,16 @@
       scroll-margin 7)
 
 (electric-pair-mode 1)
+(defun my-electric-pair-inhibit (char)
+  (let ((prev-char (char-before)))
+    (or (eq (char-syntax prev-char) ?w)
+        (looking-at-p "[[:word:]]"))))
+
+(add-hook 'prog-mode-hook
+          (lambda ()
+            (setq-local electric-pair-inhibit-predicate #'my-electric-pair-inhibit)))
+
+
 
 (fset 'yes-or-no-p 'y-or-n-p)
 (delete-selection-mode 1)
