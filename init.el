@@ -175,6 +175,14 @@
 ;; Highlight current line
 (global-hl-line-mode 1)
 
+;; Vertical line at N cols
+(add-hook 'prog-mode-hook #'display-fill-column-indicator-mode)
+(setq-default fill-column 80)
+(set-face-attribute 'fill-column-indicator nil
+                    :foreground "#202020" ;; Adjust color for subtlety
+                    :background nil)
+
+
 (use-package ace-window
   :bind (("M-o" . ace-window)
 	 ("M-O" . ace-swap-window)))
