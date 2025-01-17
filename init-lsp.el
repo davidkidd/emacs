@@ -41,8 +41,8 @@
   :mode ("\\.c\\'" . c-mode)
   :mode ("\\.h\\'" . c-mode) 
   :hook (c-mode . (lambda ()
-                    (setq c-basic-offset 2
-                          tab-width 2
+                    (setq c-basic-offset 4
+                          tab-width 4
                           indent-tabs-mode nil))))
 
 (use-package tree-sitter
