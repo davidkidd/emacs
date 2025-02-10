@@ -182,13 +182,16 @@
                     :foreground "#202020" ;; Adjust color for subtlety
                     :background nil)
 
-
 (use-package ace-window
   :bind (("M-o" . ace-window)
 	 ("M-O" . ace-swap-window)))
 
 (use-package multiple-cursors
   :bind (("C-S-c C-S-c" . mc/edit-lines)))
+
+;; ripgrep
+(use-package rg)
+(setq xref-search-program 'ripgrep)
 
 ;; search, narrowing
 (use-package counsel
@@ -215,16 +218,17 @@
 (use-package projectile
   :init (projectile-mode 1))
 (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
-(setq projectile-indexing-method 'alien)
+(setq projectile-indexing-method 'native)
 
 (use-package counsel-projectile
-  :after projectile  ; ensures Projectile loads first
-  :config
-  (counsel-projectile-mode 1))
+  ;; :after projectile  ; ensures Projectile loads first
+  ;; :config
+  ;; (counsel-projectile-mode 1)
+  )
 
 ;; Ignore ~ and cached files (eg clangd)
-(with-eval-after-load 'counsel
-  (setq counsel-find-file-ignore-regexp "\\(~\\)$\\|\\.cache/clangd/"))
+;; (with-eval-after-load 'counsel
+;;   (setq counsel-find-file-ignore-regexp "\\(~\\)$\\|\\.cache/clangd/"))
 
 
 (use-package company
@@ -261,11 +265,10 @@
   :bind (:map proced-mode-map
               ("/" . proced-narrow)))
 
-;; Add optional features here.
-;; Usually depend on heavily on preference (eg vim) and/or environment.
-;; In either case, will probably need customisation to get working.
+
 
 ;; Compile mode
+
 (load-file (concat user-emacs-directory "init-compile.el"))
 
 ;; Zen
@@ -279,3 +282,5 @@
 
 ;; posframe, like ST or VSC's omnipanel
 (load-file (concat user-emacs-directory "init-posframe.el"))
+
+(load-file (concat user-emacs-directory "init-ai.el"))

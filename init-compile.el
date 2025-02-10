@@ -8,7 +8,8 @@
       (delete-window win))
     
     ;; Set up new compilation window based on current layout
-    (if (= (count-windows) 1)
+    (if (and (= (count-windows) 1)
+             (> (frame-width) 140))
         ;; Single window - split vertically
         (progn
           (split-window-right)
