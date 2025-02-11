@@ -34,10 +34,11 @@
       (fg3 "#d6d6d6")
       (fg4 "#c2c2c2")
       (fg6 "#ffffff")
-      (bg1 "#181818")
+      (bg1 "#202020")
       (bg2 "#2a2a2a")
       (bg3 "#3d3d3d")
       (bg4 "#4f4f4f")
+      (bg5 "#080808")
       (builtin "#ff822e")
       (keyword "#ff822e")
       (const   "#ffffff")
@@ -66,6 +67,8 @@
    `(font-lock-variable-name-face ((,class (:foreground ,var))))
    `(font-lock-warning-face ((,class (:foreground ,warning :background ,bg2))))
    `(term-color-black ((,class (:foreground ,fg2 :background ,unspec))))
+   `(solaire-default-face ((,class (:background ,bg5 :foreground ,fg1))))
+;;   `(solaire-hl-line-face ((,class (:background ,bg3 :foreground ,fg1))))
    ;; `(region ((,class (:background ,fg1 :foreground ,bg1))))
    `(region ((,class (:background ,selection))))
    `(highlight ((,class (:foreground ,fg3 :background ,bg3))))
@@ -244,7 +247,9 @@
    `(jde-java-font-lock-modifier-face ((t (:foreground ,fg2))))
    `(jde-jave-font-lock-protected-face ((t (:foreground ,keyword))))
    `(jde-java-font-lock-number-face ((t (:foreground ,var))))
-   `(yas-field-highlight-face ((t (:background ,selection)))))
+   `(yas-field-highlight-face ((t (:background ,selection))))
+
+   )
    ;; Legacy
    (if (< emacs-major-version 22)
        (custom-theme-set-faces

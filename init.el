@@ -18,6 +18,10 @@
   :config
   (load-theme 'novarange t))  ;; Loads and activates the theme without confirmation
 
+(use-package solaire-mode)
+(solaire-global-mode +1)
+(add-hook 'after-load-theme-hook #'solaire-mode-swap-bg)
+
 ;; Set up our package management
 (require 'package)
 
@@ -198,6 +202,16 @@
   :init (ivy-mode 1) 
   :bind (("M-x" . counsel-M-x)
 	 ("C-c SPC" . counsel-buffer-or-recentf)))
+(use-package ivy-rich
+  :after ivy
+  :init (ivy-rich-mode 1)
+  :config
+ (setq ivy-rich-display-transformers-list
+      '((counsel-M-x
+         (:columns
+          ((counsel-M-x-transformer (:width 30))
+           (ivy-rich-counsel-function-docstring
+            (:face font-lock-comment-face :width 30 :align right))))))))
 
 (use-package smex)
 

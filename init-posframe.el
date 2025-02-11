@@ -21,7 +21,14 @@
 (setq ivy-posframe-border-width 16)
 
 (custom-set-faces
- '(ivy-posframe ((t (:background "grey15"))))
- '(ivy-posframe-border ((t (:background "grey15")))))
+ '(ivy-posframe ((t (:background "#141414"))))
+ '(ivy-posframe-border ((t (:background "#141414")))))
+
+(setq ivy-posframe-width 120)
+(setq ivy-rich-display-transformers-list
+      '((counsel-M-x
+         (:columns
+          ((counsel-M-x-transformer (:width 30))
+           (ivy-rich-counsel-function-docstring (:face font-lock-comment-face :width 30 :align left)))))))
 
 (ivy-posframe-mode 1)
