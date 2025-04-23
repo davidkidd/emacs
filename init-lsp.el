@@ -8,6 +8,7 @@
   :bind (("C-c c d" . lsp-find-definition)
          ("C-c c e" . flycheck-list-errors)
          ("C-c c r" . lsp-find-references)
+	 ("C-c c i" . imenu)
          ("C-c c l" . lsp-lens-mode))
   :custom
   (lsp-auto-guess-root nil)
@@ -94,3 +95,5 @@
 
 ;; Uncomment and set the path to clangd if necessary
 ;; (setq lsp-clients-clangd-executable "/path/to/clangd")
+
+(use-package lsp-java)

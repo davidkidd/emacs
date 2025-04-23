@@ -43,10 +43,10 @@
 ;; General settings
 (setq inhibit-startup-message t
       initial-scratch-message ";; scratch\n\n"
-      split-height-threshold nil
+;;      split-height-threshold nil
       delete-by-moving-to-trash t
       quit-restore-window-configuration nil
-      split-width-threshold 80
+;;      split-width-threshold 80
       ring-bell-function 'ignore
       scroll-margin 7)
 
@@ -60,10 +60,24 @@
           (lambda ()
             (setq-local electric-pair-inhibit-predicate #'my-electric-pair-inhibit)))
 
-
+(setq mouse-wheel-scroll-amount '(10 ((shift) . 20)))
+(setq mouse-wheel-progressive-speed t)
+(pixel-scroll-precision-mode 1)
 
 (fset 'yes-or-no-p 'y-or-n-p)
 (delete-selection-mode 1)
+
+(setq backup-directory-alist `(("." . "~/.emacs.d/emacs-backups")))
+
+(use-package drag-stuff
+  :ensure t
+  :defer t  ; Defer loading until we need it
+  :bind (:map drag-stuff-mode-map
+              ("M-p" . drag-stuff-up)
+              ("M-n" . drag-stuff-down))
+  :init
+  (drag-stuff-global-mode 1))  ; Enable globally on startup
+
 
 ;; Disable UI elements
 (dolist (mode '(scroll-bar-mode tool-bar-mode menu-bar-mode))
@@ -117,6 +131,13 @@
   ;; Keybindings within vundo-mode-map
   (define-key vundo-mode-map (kbd ",") 'vundo-backward)
   (define-key vundo-mode-map (kbd ".") 'vundo-forward))
+
+;; golden ratio for resizing
+(use-package golden-ratio)
+;; don't turn on automatically, just use a keybind
+(global-set-key (kbd "C-c =") 'golden-ratio)
+
+
 
 ;; Automatically switch to new window after splits
 (defun split-and-follow-horizontally ()
@@ -181,7 +202,7 @@
 
 ;; Vertical line at N cols
 (add-hook 'prog-mode-hook #'display-fill-column-indicator-mode)
-(setq-default fill-column 80)
+(setq-default fill-column 100)
 (set-face-attribute 'fill-column-indicator nil
                     :foreground "#202020" ;; Adjust color for subtlety
                     :background nil)
@@ -202,16 +223,6 @@
   :init (ivy-mode 1) 
   :bind (("M-x" . counsel-M-x)
 	 ("C-c SPC" . counsel-buffer-or-recentf)))
-(use-package ivy-rich
-  :after ivy
-  :init (ivy-rich-mode 1)
-  :config
- (setq ivy-rich-display-transformers-list
-      '((counsel-M-x
-         (:columns
-          ((counsel-M-x-transformer (:width 30))
-           (ivy-rich-counsel-function-docstring
-            (:face font-lock-comment-face :width 30 :align right))))))))
 
 (use-package smex)
 
@@ -232,7 +243,7 @@
 (use-package projectile
   :init (projectile-mode 1))
 (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
-(setq projectile-indexing-method 'native)
+(setq projectile-indexing-method 'alien)
 
 (use-package counsel-projectile
   ;; :after projectile  ; ensures Projectile loads first
@@ -279,6 +290,10 @@
   :bind (:map proced-mode-map
               ("/" . proced-narrow)))
 
+
+
+;; vi
+(load-file (concat user-emacs-directory "init-vi.el"))
 
 
 ;; Compile mode
