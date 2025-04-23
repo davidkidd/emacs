@@ -28,7 +28,9 @@
   (dolist (map (list evil-insert-state-map evil-replace-state-map))
     (define-key map (kbd "C-g") #'evil-normal-state))
   ;; ------------------------------------------------------------
-
+  (dolist (map (list evil-insert-state-map evil-replace-state-map))
+    (define-key map (kbd "C-[") #'evil-normal-state))
+  
   (setq sentence-end-double-space nil) ; if you don't use double-space after periods
   (define-key evil-motion-state-map (kbd "j") 'evil-next-visual-line)
   (define-key evil-motion-state-map (kbd "k") 'evil-previous-visual-line)
