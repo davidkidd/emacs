@@ -65,7 +65,10 @@
 
   ;; You can still force a buffer to a specific state manually with
   ;; `evil-normal-state' or `evil-emacs-state' if needed.
+  (with-eval-after-load 'dired
+    (define-key dired-mode-map (kbd "j") #'dired-next-line)
+    (define-key dired-mode-map (kbd "k") #'dired-previous-line))
   )
-
 (provide 'init-vi)
+  )
 ;;; init-vi.el ends here
