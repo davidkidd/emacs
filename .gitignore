@@ -10,3 +10,7 @@
 # Unignore this file
 !.gitignore
 
+# Unignore treesitter queries
+!tree-sitter/
+!tree-sitter/treesit-queries/
+!tree-sitter/treesit-queries/**
