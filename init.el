@@ -268,9 +268,9 @@
   (setq company-backends (remove 'company-dabbrev company-backends))
   (setq company-backends (remove 'company-dabbrev-code company-backends)))
 
-(use-package which-key
-  :ensure t
-  :init (which-key-mode 1))
+;; (use-package which-key
+;;   :ensure t
+;;   :init (which-key-mode 1))
 
 (use-package ivy-prescient
   :init (ivy-prescient-mode))

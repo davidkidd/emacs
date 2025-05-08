@@ -2,7 +2,8 @@
 
 (use-package lsp-mode
   :hook (
-         (csharp-mode . lsp-deferred)
+        (csharp-ts-mode . lsp-deferred)
+;;         (csharp-mode . lsp-deferred)
          (c-mode . lsp-deferred)
         )
   :bind (("C-c c d" . lsp-find-definition)
@@ -29,29 +30,53 @@
         lsp-completion-show-kind t)
   :commands lsp)
 
+(with-eval-after-load 'treesit          ; or just stick it in init.el top-level
+  (add-to-list 'treesit-extra-load-path
+               "~/.emacs.d/tree-sitter"))   ; ← no /queries/ here
+
 (use-package csharp-mode
-  :ensure t
   :mode "\\.cs\\'"
   :hook (csharp-mode . (lambda ()
                           (setq c-basic-offset 4
                                 tab-width 4
                                 indent-tabs-mode nil))))
 
-(use-package cc-mode
+(use-package csharp-ts-mode
+  :ensure nil ;; built-in
+  :mode "\\.cs\\'"
+  :hook (csharp-ts-mode . (lambda ()
+                          (setq c-basic-offset 4
+                                tab-width 4
+                                indent-tabs-mode nil))))
+;; Make `af/if` and `ac/ic` work in csharp-ts buffers
+(use-package evil-textobj-tree-sitter
   :ensure t
-  :mode ("\\.c\\'" . c-mode)
-  :mode ("\\.h\\'" . c-mode) 
-  :hook (c-mode . (lambda ()
-                    (setq c-basic-offset 4
-                          tab-width 4
-                          indent-tabs-mode nil))))
+  :after evil
+  :config
+  ;; Fix the language identifier - use a string instead of a symbol
+  (add-to-list 'evil-textobj-tree-sitter-major-mode-language-alist
+               '(csharp-ts-mode . "c-sharp"))
+  
+  ;; Define key mappings for text objects
+  (define-key evil-outer-text-objects-map "f"
+    (evil-textobj-tree-sitter-get-textobj "function.outer"))
+  (define-key evil-inner-text-objects-map "f"
+    (evil-textobj-tree-sitter-get-textobj "function.inner"))
+  (define-key evil-outer-text-objects-map "c"
+    (evil-textobj-tree-sitter-get-textobj "class.outer"))
+  (define-key evil-inner-text-objects-map "c"
+    (evil-textobj-tree-sitter-get-textobj "class.inner"))
+  (define-key evil-outer-text-objects-map "b"
+    (evil-textobj-tree-sitter-get-textobj "block.outer"))
+  (define-key evil-inner-text-objects-map "b"
+    (evil-textobj-tree-sitter-get-textobj "block.inner")))
 
-(use-package tree-sitter
-  :ensure t
-  :hook ((csharp-ts-mode c-ts-mode) . tree-sitter-hl-mode))
-
-(use-package tree-sitter-langs
-  :ensure t)
+;; Make textobjects use our custom patterns
+(with-temp-buffer
+  (insert-file-contents
+   "~/.emacs.d/tree-sitter/treesit-queries/c-sharp/textobjects.scm")
+  (evil-textobj-tree-sitter--set-query
+   "c-sharp" (buffer-string)))
 
 ;; LSP UI
 (use-package lsp-ui

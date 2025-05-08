@@ -70,5 +70,5 @@
     (define-key dired-mode-map (kbd "k") #'dired-previous-line))
   )
 (provide 'init-vi)
-  )
+
 ;;; init-vi.el ends here
