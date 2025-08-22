@@ -54,7 +54,7 @@
 ;; This is necessary to get defun commands actually mapping to methods.
 (add-hook 'csharp-ts-mode-hook
           (lambda ()
-            (setq-local treesit-defun-type-regexp "method_declaration")))
+            (setq-local treesit-defun-type-regexp "\\(method_declaration\\|constructor_declaration\\)")))
 
 ;; LSP UI
 (use-package lsp-ui
