@@ -1,9 +1,10 @@
 (setq gc-cons-threshold 100000000)
 
+
 (use-package lsp-mode
   :hook (
-        (csharp-ts-mode . lsp-deferred)
-;;         (csharp-mode . lsp-deferred)
+       (csharp-ts-mode . lsp-deferred)
+	 ;; (csharp-mode . lsp-deferred)
          (c-mode . lsp-deferred)
         )
   :bind (("C-c c d" . lsp-find-definition)
@@ -11,6 +12,7 @@
          ("C-c c r" . lsp-find-references)
 	 ("C-c c i" . imenu)
          ("C-c c l" . lsp-lens-mode))
+  
   :custom
   (lsp-auto-guess-root nil)
   (lsp-prefer-flymake nil)
@@ -20,26 +22,26 @@
   (lsp-lens-place-position 'above)
   (read-process-output-max (* 1024 1024)) 
   (lsp-keep-workspace-alive nil)
-  (lsp-eldoc-hook nil)
-  (setq lsp-response-timeout 30
-        ;;lsp-log-io nil
-        lsp-diagnostics-provider :flycheck
-        flycheck-checker-error-threshold 1000
-        read-process-output-max (* 1024 1024) 
-        lsp-idle-delay 0.5
-        lsp-completion-show-kind t)
+  (lsp-signature-auto-activate t)          
+  (lsp-signature-render-documentation t)    
+  (lsp-signature-auto-activate '(:on-trigger-char :on-server-request))
+  (lsp-eldoc-render-all t)
+  (lsp-response-timeout 30)
+  (lsp-log-io nil)
+  (lsp-diagnostics-provider :flycheck)
+  (lsp-idle-delay 2.0)
+  (lsp-completion-show-kind t)
+  :config
+  (setq flycheck-checker-error-threshold 1000
+        read-process-output-max (* 1024 1024))
   :commands lsp)
 
-(with-eval-after-load 'treesit          ; or just stick it in init.el top-level
-  (add-to-list 'treesit-extra-load-path
-               "~/.emacs.d/tree-sitter"))   ; ← no /queries/ here
-
-(use-package csharp-mode
-  :mode "\\.cs\\'"
-  :hook (csharp-mode . (lambda ()
-                          (setq c-basic-offset 4
-                                tab-width 4
-                                indent-tabs-mode nil))))
+;; (use-package csharp-mode
+;;   :mode "\\.cs\\'"
+;;   :hook (csharp-mode . (lambda ()
+;;                           (setq c-basic-offset 4
+;;                                 tab-width 4
+;;                                 indent-tabs-mode nil))))
 
 (use-package csharp-ts-mode
   :ensure nil ;; built-in
@@ -48,35 +50,11 @@
                           (setq c-basic-offset 4
                                 tab-width 4
                                 indent-tabs-mode nil))))
-;; Make `af/if` and `ac/ic` work in csharp-ts buffers
-(use-package evil-textobj-tree-sitter
-  :ensure t
-  :after evil
-  :config
-  ;; Fix the language identifier - use a string instead of a symbol
-  (add-to-list 'evil-textobj-tree-sitter-major-mode-language-alist
-               '(csharp-ts-mode . "c-sharp"))
-  
-  ;; Define key mappings for text objects
-  (define-key evil-outer-text-objects-map "f"
-    (evil-textobj-tree-sitter-get-textobj "function.outer"))
-  (define-key evil-inner-text-objects-map "f"
-    (evil-textobj-tree-sitter-get-textobj "function.inner"))
-  (define-key evil-outer-text-objects-map "c"
-    (evil-textobj-tree-sitter-get-textobj "class.outer"))
-  (define-key evil-inner-text-objects-map "c"
-    (evil-textobj-tree-sitter-get-textobj "class.inner"))
-  (define-key evil-outer-text-objects-map "b"
-    (evil-textobj-tree-sitter-get-textobj "block.outer"))
-  (define-key evil-inner-text-objects-map "b"
-    (evil-textobj-tree-sitter-get-textobj "block.inner")))
 
-;; Make textobjects use our custom patterns
-(with-temp-buffer
-  (insert-file-contents
-   "~/.emacs.d/tree-sitter/treesit-queries/c-sharp/textobjects.scm")
-  (evil-textobj-tree-sitter--set-query
-   "c-sharp" (buffer-string)))
+;; This is necessary to get defun commands actually mapping to methods.
+(add-hook 'csharp-ts-mode-hook
+          (lambda ()
+            (setq-local treesit-defun-type-regexp "method_declaration")))
 
 ;; LSP UI
 (use-package lsp-ui
@@ -99,26 +77,19 @@
 
 (setq-default c-basic-offset 4)
 
+
 (use-package company
   :after lsp-mode
   :hook (prog-mode . company-mode)
   :bind (:map lsp-mode-map
               ("<tab>" . company-indent-or-complete-common))
   :custom
-  (company-minimum-prefix-length 1)
-  (company-idle-delay 0.3))
-
-(use-package company-box
-  :hook (company-mode . company-box-mode))
-
+  (company-minimum-prefix-length 2)
+  (company-idle-delay 0.2))
 
 ;; Customize clangd arguments
 (setq lsp-clients-clangd-args '("--clang-tidy" "--background-index" "--log=verbose"))
 
 ;; Enable logging
-(setq lsp-log-io t)
+(setq lsp-log-io nil)
 
-;; Uncomment and set the path to clangd if necessary
-;; (setq lsp-clients-clangd-executable "/path/to/clangd")
-
-(use-package lsp-java)

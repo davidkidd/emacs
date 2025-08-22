@@ -42,7 +42,7 @@
       (builtin "#ff822e")
       (keyword "#ff822e")
       (const   "#ffffff")
-      (comment "#949494")
+      (comment "#494949")
       (func    "#ffffff")
       (str     "#ff822e")
       (type    "#999999")

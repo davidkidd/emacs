@@ -4,14 +4,12 @@
   :config
   (exec-path-from-shell-initialize))
 
+
 ;; Set our custom file setup
 ;; Add the "custom" directory to the load path
 (defconst custom-dir (expand-file-name "custom" user-emacs-directory)
   "Full path to the custom configuration directory.")
 (add-to-list 'load-path custom-dir)
-(setq custom-file (expand-file-name "custom.el" custom-dir))
-(load-file custom-file)
-
 ;; Simple theme
 (use-package novarange-theme
   :ensure nil  ;; Indicates that the package is not available via package repositories
@@ -21,6 +19,9 @@
 (use-package solaire-mode)
 (solaire-global-mode +1)
 (add-hook 'after-load-theme-hook #'solaire-mode-swap-bg)
+
+;; Start the server so I can use emacsclient to interact with it
+(server-start)
 
 ;; Set up our package management
 (require 'package)
@@ -48,7 +49,7 @@
       quit-restore-window-configuration nil
 ;;      split-width-threshold 80
       ring-bell-function 'ignore
-      scroll-margin 7)
+      scroll-margin 0)
 
 (electric-pair-mode 1)
 (defun my-electric-pair-inhibit (char)
@@ -60,9 +61,16 @@
           (lambda ()
             (setq-local electric-pair-inhibit-predicate #'my-electric-pair-inhibit)))
 
-(setq mouse-wheel-scroll-amount '(10 ((shift) . 20)))
-(setq mouse-wheel-progressive-speed t)
-(pixel-scroll-precision-mode 1)
+;;(unless (display-graphic-p) (xterm-mouse-mode 1))
+;; Terminal-only input tweaks
+;; (unless (display-graphic-p)
+;;   (xterm-mouse-mode 1)           ;; decode terminal mouse/scroll into Emacs events
+;;   (mouse-wheel-mode 1)           ;; ensure wheel is handled
+;;   (pixel-scroll-precision-mode 0)) ;; pixel scrolling is GUI-only; turn it off in TTY
+
+;; (setq mouse-wheel-scroll-amount '(10 ((shift) . 20)))
+;; (setq mouse-wheel-progressive-speed t)
+;; (pixel-scroll-precision-mode 1)
 
 (fset 'yes-or-no-p 'y-or-n-p)
 (delete-selection-mode 1)
@@ -71,13 +79,13 @@
 
 (use-package drag-stuff
   :ensure t
-  :defer t  ; Defer loading until we need it
+  :defer t  ; Defer loading until needed
   :bind (:map drag-stuff-mode-map
               ("M-p" . drag-stuff-up)
               ("M-n" . drag-stuff-down))
-  :init
-  (drag-stuff-global-mode 1))  ; Enable globally on startup
-
+  :hook
+  ((text-mode . drag-stuff-mode)
+   (prog-mode . drag-stuff-mode)))
 
 ;; Disable UI elements
 (dolist (mode '(scroll-bar-mode tool-bar-mode menu-bar-mode))
@@ -88,7 +96,6 @@
   :bind (("C-c C-a" . mark-whole-buffer)
          ("C-c a" . mark-whole-buffer)
          ("C-\\" . counsel-M-x)
-         ("C-]" . project-switch-to-buffer)
 	 ("C-c b" . counsel-switch-buffer)
 	 ("C-c SPC" . counsel-buffer-or-recentf)
          ("M-0" . fixup-whitespace)
@@ -99,16 +106,22 @@
          ("M-[" . backward-paragraph)
 	 ("C-c o" . delete-other-windows)
 	 ("C-c 0" . delete-window)
+	 ("C-;"   . er/expand-region)
+	 ("C-M-;"   . er/contract-region)
          ("C-c ]" . next-buffer)
-         ("C-c [" . previous-buffer)
-         ("C-;" . goto-line)))
+         ("C-c [" . previous-buffer)))
+
+         ;; ("C-;" . goto-line)))
 
 ;; Make sure these keys always available
 (use-package bind-key
    :config
    (bind-key* "C-\\" 'counsel-M-x)
+   (bind-key* "C-]" 'counsel-projectile-switch-to-buffer)
    (bind-key* "C-." 'forward-word)
    (bind-key* "C-," 'backward-word)
+   (bind-key* "C-M-'" 'avy-goto-line)
+   (bind-key* "C-\"" 'avy-zap-up-to-char)
    (bind-key* "C-'" 'avy-goto-char)
 )
 
@@ -133,7 +146,7 @@
   (define-key vundo-mode-map (kbd ".") 'vundo-forward))
 
 ;; golden ratio for resizing
-(use-package golden-ratio)
+(use-package golden-ratio) ;
 ;; don't turn on automatically, just use a keybind
 (global-set-key (kbd "C-c =") 'golden-ratio)
 
@@ -174,8 +187,16 @@
 (let ((desired-font "FiraCode Nerd Font")
       (font-size 100))
   (if (find-font (font-spec :name desired-font))
-      (set-face-attribute 'default nil :font desired-font :height font-size)
+      (progn
+        (add-to-list 'default-frame-alist `(font . ,(format "%s-%d" desired-font (/ font-size 10))))
+        (set-face-attribute 'default nil :font desired-font :height font-size))
     (message "Desired font \"%s\" not found." desired-font)))
+
+;; (let ((desired-font "FiraCode Nerd Font")
+;;       (font-size 100))
+;;   (if (find-font (font-spec :name desired-font))
+;;       (set-face-attribute 'default nil :font desired-font :height font-size)
+;;     (message "Desired font \"%s\" not found." desired-font)))
 
 (require 'color)
 (let* ((linum-face 'line-number)
@@ -196,7 +217,7 @@
 
 ;; Display line numbers in these modes
 (add-hook 'prog-mode-hook 'display-line-numbers-mode)
-
+(setq display-line-numbers-type t)
 ;; Highlight current line
 (global-hl-line-mode 1)
 
@@ -224,6 +245,8 @@
   :bind (("M-x" . counsel-M-x)
 	 ("C-c SPC" . counsel-buffer-or-recentf)))
 
+;; (use-package minimap)
+
 (use-package smex)
 
 (global-set-key (kbd "C-s") 'swiper)
@@ -236,9 +259,6 @@
  '(avy-lead-face-0 ((t (:foreground "white" :background "orange"))))
  '(avy-lead-face-1 ((t (:foreground "black" :background "green"))))
  '(avy-lead-face-2 ((t (:foreground "white" :background "blue")))))
-
-(use-package avy-zap
-  :bind (("C-M-'" . avy-zap-up-to-char)))
 
 (use-package projectile
   :init (projectile-mode 1))
@@ -268,9 +288,9 @@
   (setq company-backends (remove 'company-dabbrev company-backends))
   (setq company-backends (remove 'company-dabbrev-code company-backends)))
 
-;; (use-package which-key
-;;   :ensure t
-;;   :init (which-key-mode 1))
+(use-package which-key
+  :ensure t
+  :init (which-key-mode 1))
 
 (use-package ivy-prescient
   :init (ivy-prescient-mode))
@@ -280,7 +300,6 @@
 
 (use-package flycheck)
 
-;; Git
 (use-package magit)
 
 ;; Better proced
@@ -290,15 +309,16 @@
   :bind (:map proced-mode-map
               ("/" . proced-narrow)))
 
+;;;; vi
+;;(load-file (concat user-emacs-directory "init-vi.el"))
 
+;;meow-mode
+;; (load-file (concat user-emacs-directory "init-meow.el"))
 
-;; vi
-(load-file (concat user-emacs-directory "init-vi.el"))
+;; (load-file (concat user-emacs-directory "init-boon.el"))
 
-
-;; Compile mode
-
-(load-file (concat user-emacs-directory "init-compile.el"))
+;; ;;god-mode
+;; (load-file (concat user-emacs-directory "init-god.el"))
 
 ;; Zen
 (load-file (concat user-emacs-directory "init-zen.el"))
@@ -312,4 +332,12 @@
 ;; posframe, like ST or VSC's omnipanel
 (load-file (concat user-emacs-directory "init-posframe.el"))
 
+;; LLM and code assist
 (load-file (concat user-emacs-directory "init-ai.el"))
+
+;; Music etc
+(load-file (concat user-emacs-directory "init-media.el"))
+
+(setq custom-file (expand-file-name "custom.el" custom-dir))
+(load-file custom-file)
+
