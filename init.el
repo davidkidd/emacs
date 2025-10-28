@@ -30,6 +30,7 @@
 
 (setq package-archives '(("melpa" . "https://melpa.org/packages/")
                          ("org" . "https://orgmode.org/elpa/")
+			 ("nongnu" . "https://elpa.nongnu.org/nongnu/")
                          ("gnu" . "https://elpa.gnu.org/packages/")))
 (package-initialize)
 
@@ -44,10 +45,8 @@
 ;; General settings
 (setq inhibit-startup-message t
       initial-scratch-message ";; scratch\n\n"
-;;      split-height-threshold nil
       delete-by-moving-to-trash t
       quit-restore-window-configuration nil
-;;      split-width-threshold 80
       ring-bell-function 'ignore
       scroll-margin 0)
 
@@ -60,17 +59,6 @@
 (add-hook 'prog-mode-hook
           (lambda ()
             (setq-local electric-pair-inhibit-predicate #'my-electric-pair-inhibit)))
-
-;;(unless (display-graphic-p) (xterm-mouse-mode 1))
-;; Terminal-only input tweaks
-;; (unless (display-graphic-p)
-;;   (xterm-mouse-mode 1)           ;; decode terminal mouse/scroll into Emacs events
-;;   (mouse-wheel-mode 1)           ;; ensure wheel is handled
-;;   (pixel-scroll-precision-mode 0)) ;; pixel scrolling is GUI-only; turn it off in TTY
-
-;; (setq mouse-wheel-scroll-amount '(10 ((shift) . 20)))
-;; (setq mouse-wheel-progressive-speed t)
-;; (pixel-scroll-precision-mode 1)
 
 (fset 'yes-or-no-p 'y-or-n-p)
 (delete-selection-mode 1)
@@ -97,11 +85,12 @@
          ("C-c a" . mark-whole-buffer)
          ("C-\\" . counsel-M-x)
 	 ("C-c b" . counsel-switch-buffer)
+	 ("M-y" . counsel-yank-pop)
 	 ("C-c SPC" . counsel-buffer-or-recentf)
          ("M-0" . fixup-whitespace)
          ("C->" . scroll-up)
          ("C-<" . scroll-down)
-	 ("C-M-l" . duplicate-line)
+	 ("C-M-l" . duplicate-dwim)
 	 ("M-]" . forward-paragraph)
          ("M-[" . backward-paragraph)
 	 ("C-c o" . delete-other-windows)
@@ -150,8 +139,6 @@
 ;; don't turn on automatically, just use a keybind
 (global-set-key (kbd "C-c =") 'golden-ratio)
 
-
-
 ;; Automatically switch to new window after splits
 (defun split-and-follow-horizontally ()
   (interactive)
@@ -179,7 +166,6 @@
 
 (global-set-key (kbd "C-c w") 'copy-current-line)
 
-
 ;; Set default cursor type
 (setq-default cursor-type 'bar)  ;; Default to bar cursor
 
@@ -191,12 +177,6 @@
         (add-to-list 'default-frame-alist `(font . ,(format "%s-%d" desired-font (/ font-size 10))))
         (set-face-attribute 'default nil :font desired-font :height font-size))
     (message "Desired font \"%s\" not found." desired-font)))
-
-;; (let ((desired-font "FiraCode Nerd Font")
-;;       (font-size 100))
-;;   (if (find-font (font-spec :name desired-font))
-;;       (set-face-attribute 'default nil :font desired-font :height font-size)
-;;     (message "Desired font \"%s\" not found." desired-font)))
 
 (require 'color)
 (let* ((linum-face 'line-number)
@@ -233,7 +213,8 @@
 	 ("M-O" . ace-swap-window)))
 
 (use-package multiple-cursors
-  :bind (("C-S-c C-S-c" . mc/edit-lines)))
+  :bind (("C-S-c C-S-c" . mc/edit-lines)
+	 ("M-S-SPC" . mc/mark-all-dwim)))
 
 ;; ripgrep
 (use-package rg)
@@ -244,8 +225,6 @@
   :init (ivy-mode 1) 
   :bind (("M-x" . counsel-M-x)
 	 ("C-c SPC" . counsel-buffer-or-recentf)))
-
-;; (use-package minimap)
 
 (use-package smex)
 

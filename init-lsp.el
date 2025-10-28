@@ -1,6 +1,5 @@
 (setq gc-cons-threshold 100000000)
 
-
 (use-package lsp-mode
   :hook (
        (csharp-ts-mode . lsp-deferred)
@@ -10,7 +9,8 @@
   :bind (("C-c c d" . lsp-find-definition)
          ("C-c c e" . flycheck-list-errors)
          ("C-c c r" . lsp-find-references)
-	 ("C-c c i" . imenu)
+	 ("C-c c i" . counsel-imenu)
+	 ("C-c c a" . lsp-execute-code-action)
          ("C-c c l" . lsp-lens-mode))
   
   :custom
@@ -27,15 +27,17 @@
   (lsp-signature-auto-activate '(:on-trigger-char :on-server-request))
   (lsp-eldoc-render-all t)
   (lsp-response-timeout 30)
-  (lsp-log-io nil)
+;;  (lsp-log-io nil)
   (lsp-diagnostics-provider :flycheck)
-  (lsp-idle-delay 2.0)
+  (lsp-idle-delay 0.05)
   (lsp-completion-show-kind t)
   :config
   (setq flycheck-checker-error-threshold 1000
-        read-process-output-max (* 1024 1024))
+        read-process-output-max (* 1024 1024)
+	lsp-headerline-breadcrumb-icons-enable nil
+	lsp-headerline-breadcrumb-enable-diagnostics nil
+	)
   :commands lsp)
-
 ;; (use-package csharp-mode
 ;;   :mode "\\.cs\\'"
 ;;   :hook (csharp-mode . (lambda ()
@@ -54,7 +56,10 @@
 ;; This is necessary to get defun commands actually mapping to methods.
 (add-hook 'csharp-ts-mode-hook
           (lambda ()
-            (setq-local treesit-defun-type-regexp "\\(method_declaration\\|constructor_declaration\\)")))
+            (setq-local treesit-defun-type-regexp
+                        "\\(method_declaration\\|constructor_declaration\\|class_declaration\\|interface_declaration\\)")
+	    ))
+
 
 ;; LSP UI
 (use-package lsp-ui
@@ -91,5 +96,5 @@
 (setq lsp-clients-clangd-args '("--clang-tidy" "--background-index" "--log=verbose"))
 
 ;; Enable logging
-(setq lsp-log-io nil)
+;;(setq lsp-log-io nil)
 

@@ -42,9 +42,9 @@
  '(ivy-posframe-border ((t (:background "#121212")))))
 
 ;; Make posframe width dynamic based on frame size
-(setq ivy-posframe-width 60)  
-(setq ivy-posframe-min-width 20)
-(setq ivy-posframe-height 8)
+(setq ivy-posframe-width 78)  
+(setq ivy-posframe-min-width 78)
+(setq ivy-posframe-height 10)
 ;; (setq ivy-posframe-parameters
 ;;       '((internal-border-width . 
 ;;         (left-fringe . 8)
