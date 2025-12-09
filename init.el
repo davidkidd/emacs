@@ -311,6 +311,15 @@
 ;; Task tracking
 (load-file (concat user-emacs-directory "init-tasks.el"))
 
+(with-eval-after-load 'enova-tasks
+  (set-face-attribute 'enova-tasks-keyword-face nil
+    :foreground "#999999"
+    :weight 'bold)
+  (set-face-attribute 'enova-tasks-tag-face nil
+		      :foreground "#999999"))
+
+(global-enova-tasks-mode 1)
+
 ;; posframe, like ST or VSC's omnipanel
 (load-file (concat user-emacs-directory "init-posframe.el"))
 
