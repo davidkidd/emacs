@@ -308,6 +308,9 @@
 ;; LSP
 (load-file (concat user-emacs-directory "init-lsp.el"))
 
+;; Task tracking
+(load-file (concat user-emacs-directory "init-tasks.el"))
+
 ;; posframe, like ST or VSC's omnipanel
 (load-file (concat user-emacs-directory "init-posframe.el"))
 
