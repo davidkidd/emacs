@@ -311,14 +311,21 @@
 ;; Task tracking
 (load-file (concat user-emacs-directory "init-tasks.el"))
 
-(with-eval-after-load 'enova-tasks
-  (set-face-attribute 'enova-tasks-keyword-face nil
+(with-eval-after-load 'task-find
+  (set-face-attribute 'task-find-face-category nil
     :foreground "#999999"
     :weight 'bold)
-  (set-face-attribute 'enova-tasks-tag-face nil
+  (set-face-attribute 'task-find-face-tag nil
 		      :foreground "#999999"))
 
-(global-enova-tasks-mode 1)
+(require 'task-find)
+
+(defun my/project-urgent-todos ()
+  "Jump straight to all urgent TODOs in the current project."
+  (interactive)
+  (task-find-run-this "BUG" '("urgent" "re:dav.*") nil))
+
+(global-task-find-mode 1)
 
 ;; posframe, like ST or VSC's omnipanel
 (load-file (concat user-emacs-directory "init-posframe.el"))
