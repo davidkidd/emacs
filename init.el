@@ -325,7 +325,27 @@
   (interactive)
   (task-find-run-this "BUG" '("urgent" "re:dav.*") nil))
 
-(global-task-find-mode 1)
+(defun my-task-find-highlight-not-in-code-string ()
+  "Return non-nil when `task-find' should highlight at point.
+
+Allows highlighting everywhere *except* code string literals.
+Docstrings (which usually use `font-lock-doc-face') are still
+treated as documentation, so they are allowed."
+  (let* ((ppss      (syntax-ppss))
+         (in-string (nth 3 ppss))
+         (face      (or (get-text-property (point) 'face)
+                        (get-text-property (point) 'font-lock-face)))
+         (faces     (if (listp face) face (list face)))
+         (doc-p     (memq 'font-lock-doc-face faces)))
+    ;; Highlight if we're not in a string, or if this is a docstring.
+    (or (not in-string) doc-p)))
+
+(setq task-find-highlight-scope 'custom
+      task-find-highlight-custom-predicate
+      #'my-task-find-highlight-not-in-code-string)
+
+
+(global-task-find-hl-mode 1)
 
 ;; posframe, like ST or VSC's omnipanel
 (load-file (concat user-emacs-directory "init-posframe.el"))

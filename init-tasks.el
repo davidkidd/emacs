@@ -22,7 +22,7 @@
 ;;; Commentary:
 
 ;; task-find provides project-wide searching and highlighting of task
-;; annotations using ripgrep. It supports multiple task keywords (TODO,
+;; annotations using ripgrep. It supports multiple task categories (TODO,
 ;; FIXME, HACK, or custom), optional tag filters, AND/OR logic, saved
 ;; searches, and a transient UI.
 ;;
@@ -31,20 +31,23 @@
 ;;   • Tag filtering with AND/OR
 ;;   • Saved searches (via customize)
 ;;   • Transient UI for interactive searching
-;;   • Minor mode for keyword/tag highlighting
+;;   • Minor mode for category/tag highlighting
 ;;
 ;; USAGE
-;;   M-x task-find-search
-;;     Quick search across project (choose keyword; no tags).
-;;
 ;;   M-x task-find-menu
 ;;     Full-featured transient interface including tags, AND/OR mode,
 ;;     and saved searches.
 ;;
-;;   M-x task-find-mode
-;;     Highlight task keywords and their tags (scope is configurable).
+;;   M-x task-find-search
+;;     Skip menu and quick search across project (choose category; no tags).
 ;;
-;;   M-x global-task-find-mode
+;;   M-x task-find-search-saved
+;;     Invoke a saved search.
+;;
+;;   M-x task-find-hl-mode
+;;     Highlight task categories and their tags (scope is configurable).
+;;
+;;   M-x global-task-find-hl-mode
 ;;     Enable highlighting automatically in programming and text buffers.
 ;;
 ;; SYNTAX
@@ -58,7 +61,7 @@
 ;;
 ;;   Tags are case-insensitive. Tags prefixed with ‘re:’ are interpreted
 ;;   as raw regular expressions:
-;;       re:^bug-[0-9]+
+;;       FIXME[re:^bug-[0-9]+]
 ;;
 ;; EXAMPLES
 ;;   TODO: refactor this function
@@ -85,8 +88,8 @@ Each element has the form:
   (LABEL CATEGORY TAG-MODE TAGS)
 
 - LABEL    : A human-readable name for completing-read.
-- CATEGORY : A string matching one of `task-find-keywords',
-             or \"ALL\"/\"\" meaning all keywords.
+- CATEGORY : A string matching one of `task-find-categories',
+             or \"ALL\"/\"\" meaning all categories.
 - TAG-MODE : Either `and' or `or'.
 - TAGS     : Raw comma-separated tag string, as typed in the menu.
 
@@ -106,41 +109,43 @@ You can edit this via `M-x customize-group RET task-find RET'."
   (mapcar #'car task-find-saved-searches))
 
 (defun task-find--find-saved-search (label)
-  "Return saved search tuple (KEYWORD TAG-MODE TAGS) for LABEL.
+  "Return saved search tuple (CATEGORY TAG-MODE TAGS) for LABEL.
 
 Signals a `user-error' if LABEL is not found."
   (let ((entry (assoc label task-find-saved-searches)))
     (unless entry
       (user-error "No saved search named %S" label))
-    (let ((kw   (nth 1 entry))
+    (let ((cat  (nth 1 entry))
           (mode (nth 2 entry))
           (tags (nth 3 entry)))
-      (list kw
+      (list cat
             (if (memq mode '(and or)) mode 'and)
             (or tags "")))))
 
-(defun task-find--normalise-saved-kind (keyword)
-  "Convert saved KEYWORD string into a KIND understood by `task-find-search'."
-  (let ((kw (string-trim (or keyword ""))))
-    (if (or (string-empty-p kw)
-            (string-equal kw "ALL"))
+(defun task-find--normalise-saved-kind (category)
+  "Convert saved CATEGORY string into a KIND understood by `task-find-search'."
+  (let ((cat (string-trim (or category ""))))
+    (if (or (string-empty-p cat)
+            (string-equal cat "ALL"))
         'all
-      kw)))
+      cat)))
 
-(defun task-find--set-keywords (sym value)
-  "Setter for `task-find-keywords' that also rebuilds the menu.
+(defun task-find--set-categories (sym value)
+  "Setter for `task-find-categories' that also rebuilds the menu.
 SYM is the custom variable and VALUE is its new value."
   (set-default sym value)
-  ;; Only rebuild after the transient is defined, to avoid load-order issues.
-  (when (fboundp 'task-find-menu)
-    (task-find--rebuild-menu-keywords)))
+  ;; Only rebuild after both the transient command and the helper
+  ;; function are defined, to avoid load-order issues.
+  (when (and (fboundp 'task-find-menu)
+             (fboundp 'task-find--rebuild-menu-categories))
+    (task-find--rebuild-menu-categories)))
 
-(defcustom task-find-keywords '("TODO" "FIXME" "HACK")
+(defcustom task-find-categories '("TODO" "FIXME" "HACK")
   "Task categories to search for.
 Categories must be uppercase for syntax highlighting to work."
   :type '(repeat string)
   :group 'task-find
-  :set #'task-find--set-keywords)
+  :set #'task-find--set-categories)
 
 (defcustom task-find-highlight-scope 'comments-only
   "Where `task-find-mode' should apply highlighting.
@@ -179,11 +184,9 @@ falls back to `comments-and-docstrings' behaviour."
           (function :tag "Predicate function"))
   :group 'task-find)
 
-
-
 (defface task-find-face-category
   '((t :weight bold))
-  "Face for task keywords (TODO, FIXME, HACK)."
+  "Face for task categories (TODO, FIXME, HACK)."
   :group 'task-find)
 
 (defface task-find-face-tag
@@ -250,21 +253,21 @@ Tags starting with \"re:\" are treated as raw regex fragments (without the prefi
 (defun task-find--regex (kind tags &optional and-mode)
   "Build PCRE2 regex for KIND with optional TAGS.
 
-KIND can be a keyword string, 'all, or a numeric index into
-`task-find-keywords'.  TAGS is a comma-separated string.
+KIND can be a category string, 'all, or a numeric index into
+`task-find-categories'.  TAGS is a comma-separated string.
 
 If AND-MODE is non-nil, *all* tags must appear in the tag list.
 If AND-MODE is nil, *any one* tag is enough (OR mode)."
-  (let* ((kw (cond
-              ((eq kind 'all)
-               (format "(?:%s)" (string-join task-find-keywords "|")))
-              ((stringp kind) kind)
-              ((numberp kind) (nth kind task-find-keywords))
-              (t (error "Unknown kind: %S" kind))))
+  (let* ((cat (cond
+               ((eq kind 'all)
+                (format "(?:%s)" (string-join task-find-categories "|")))
+               ((stringp kind) kind)
+               ((numberp kind) (nth kind task-find-categories))
+               (t (error "Unknown kind: %S" kind))))
          (raw-tags (split-string (or tags "") "," t "[ \t\n\r]+")))
     (if (null raw-tags)
-        ;; No tags specified: match bare keyword, with or without a tag list.
-        (format "\\b%s(?:\\[[^]]*\\])?" kw)
+        ;; No tags specified: match bare category, with or without a tag list.
+        (format "\\b%s(?:\\[[^]]*\\])?" cat)
       (let* ((frags (mapcar #'task-find--tag-to-regex raw-tags)))
         (if and-mode
             ;; AND mode: chain lookaheads, one per tag.
@@ -273,24 +276,24 @@ If AND-MODE is nil, *any one* tag is enough (OR mode)."
                             (format "(?=[^]]*(?i:%s))" frag))
                           frags
                           "")))
-              (format "\\b%s\\[%s[^]]*\\]" kw conds))
+              (format "\\b%s\\[%s[^]]*\\]" cat conds))
           ;; OR mode: a single lookahead with alternation.
           (let ((alt (string-join frags "|")))
-            (format "\\b%s\\[[^]]*(?i:%s)[^]]*\\]" kw alt)))))))
+            (format "\\b%s\\[[^]]*(?i:%s)[^]]*\\]" cat alt)))))))
 
 (defun task-find--run (kind tags and-mode)
   "Execute ripgrep search for KIND with TAGS using AND-MODE logic.
 
 If KIND refers to a category that is no longer present in
-`task-find-keywords', a warning is displayed, but the search
-still runs using KIND as a literal keyword."
+`task-find-categories', a warning is displayed, but the search
+still runs using KIND as a literal category name."
   (task-find--check-rg)
   ;; Warn if we're using a category that no longer exists in the
-  ;; configured keywords (typically from an old saved search).
+  ;; configured categories (typically from an old saved search).
   (when (task-find--unknown-kind-p kind)
     (display-warning
      'task-find
-     (format "Category %S is not present in `task-find-keywords`; search still runs using this literal name."
+     (format "Category %S is not present in `task-find-categories`; search still runs using this literal name."
              kind)
      :warning))
   (let* ((root  (task-find--project-root))
@@ -304,9 +307,9 @@ still runs using KIND as a literal keyword."
 
 ;;;###autoload
 (defun task-find-search (&optional kind tags and-mode)
-  "Search project for task keywords.
+  "Search project for task categories.
 
-KIND specifies which keyword to search (or 'all for all keywords).
+KIND specifies which category to search (or 'all for all categories).
 TAGS is a comma-separated string of tags to filter by.
 AND-MODE determines if all tags must match (t) or any tag (nil).
 
@@ -315,7 +318,7 @@ filter (TAGS = \"\") and AND-MODE = t.  For tag-based searches or
 AND/OR control, use `task-find-menu'."
   (interactive
    (list
-    (let* ((choices (cons "ALL" task-find-keywords))
+    (let* ((choices (cons "ALL" task-find-categories))
            (kind-str (completing-read "Category: " choices nil t nil nil "ALL")))
       (if (string= kind-str "ALL") 'all kind-str))
     nil
@@ -342,8 +345,8 @@ LABEL is chosen from `task-find-saved-searches'."
         (user-error
          "No saved searches configured. Use `M-x customize-group RET task-find RET' to add some."))
       (completing-read "Saved search: " labels nil t))))
-  (pcase-let* ((`(,kw ,mode ,tags) (task-find--find-saved-search label))
-               (kind     (task-find--normalise-saved-kind kw))
+  (pcase-let* ((`(,cat ,mode ,tags) (task-find--find-saved-search label))
+               (kind     (task-find--normalise-saved-kind cat))
                (and-mode (eq mode 'and)))
     ;; Keep transient state in sync with what we just ran.
     (setq task-find--current-kind kind
@@ -354,7 +357,7 @@ LABEL is chosen from `task-find-saved-searches'."
 ;;; Syntax highlighting
 
 (defvar-local task-find--font-lock-regex nil
-  "Buffer-local regex matching keywords with optional tags.")
+  "Buffer-local regex matching categories with optional tags.")
 
 (defun task-find--in-comment-or-doc-p ()
   "Return non-nil if point is in a comment or docstring."
@@ -372,8 +375,8 @@ LABEL is chosen from `task-find-saved-searches'."
   "Programmatically run a task-find search.
 
 CATEGORY is the task category to search:
-  - \"ALL\" or nil or the symbol `all' means all keywords.
-  - A string like \"TODO\" or \"FIXME\" limits the search to that keyword.
+  - \"ALL\" or nil or the symbol `all' means all categories.
+  - A string like \"TODO\" or \"FIXME\" limits the search to that category.
 
 TAGS is either:
   - A comma-separated string, e.g. \"urgent,dave,re:^BUG-[0-9]+\".
@@ -409,7 +412,6 @@ like `task-find-search', but without prompting."
     (task-find--set-tags-from-string tag-str)
     (task-find--run kind tag-str and-mode)))
 
-
 (defun task-find--in-comment-p ()
   "Return non-nil if point is in a comment."
   (nth 4 (syntax-ppss)))
@@ -439,8 +441,8 @@ Respects `task-find-highlight-scope' and
 
 (defun task-find--build-font-lock-regex ()
   "Build regex for font-lock highlighting."
-  (let* ((kw-re (regexp-opt task-find-keywords))
-         (full (concat "\\(\\b" kw-re "\\b\\)\\(\\[\\([^]]+\\)\\]\\)?")))
+  (let* ((cat-re (regexp-opt task-find-categories))
+         (full (concat "\\(\\b" cat-re "\\b\\)\\(\\[\\([^]]+\\)\\]\\)?")))
     (setq-local task-find--font-lock-regex full)))
 
 (defun task-find--font-lock-keywords ()
@@ -454,69 +456,68 @@ Respects `task-find-highlight-scope' and
         prepend t))))
 
 (defun task-find-fontify ()
-  "Enable task keyword and tag highlighting."
+  "Enable task category and tag highlighting."
   (task-find--build-font-lock-regex)
   (font-lock-add-keywords nil (task-find--font-lock-keywords) 'append))
 
 (defun task-find-defontify ()
-  "Disable task keyword and tag highlighting."
+  "Disable task category and tag highlighting."
   (font-lock-remove-keywords nil (task-find--font-lock-keywords))
   (setq-local task-find--font-lock-regex nil))
 
 ;;;###autoload
-(define-minor-mode task-find-mode
-  "Highlight task keywords and their tags.
+(define-minor-mode task-find-hl-mode
+  "Highlight task categories and their tags.
 
 The scope of highlighting is controlled by
 `task-find-highlight-scope'."
   :lighter " TaskFind"
   :group 'task-find
-  (if task-find-mode
+  (if task-find-hl-mode
       (task-find-fontify)
     (task-find-defontify))
   (when font-lock-mode
-    (if task-find-mode
+    (if task-find-hl-mode
         (font-lock-fontify-buffer)
       (font-lock-flush))))
 
 ;;;###autoload
-(define-globalized-minor-mode global-task-find-mode task-find-mode
+(define-globalized-minor-mode global-task-find-hl-mode task-find-hl-mode
   (lambda ()
     (when (or (derived-mode-p 'prog-mode)
               (derived-mode-p 'text-mode))
-      (task-find-mode 1)))
+      (task-find-hl-mode 1)))
   :group 'task-find)
 
 ;;; Transient interface
 
-(defun task-find--kind-to-saved-keyword (kind)
+(defun task-find--kind-to-saved-category (kind)
   "Convert KIND (as used internally) into a string for saving.
 
-KIND may be 'all, a keyword string, or a numeric index into
-`task-find-keywords'.  Returns a string suitable for the
-KEYWORD field in `task-find-saved-searches'."
+KIND may be 'all, a category string, or a numeric index into
+`task-find-categories'.  Returns a string suitable for the
+CATEGORY field in `task-find-saved-searches'."
   (cond
    ((eq kind 'all) "ALL")
    ((stringp kind) kind)
    ((and (numberp kind)
-         (nth kind task-find-keywords))
-    (nth kind task-find-keywords))
+         (nth kind task-find-categories))
+    (nth kind task-find-categories))
    (t "ALL")))
 
 (defvar task-find--current-kind 'all
   "Last task KIND used in `task-find-menu'.
 
-Either 'all, a keyword string, or a numeric index into
-`task-find-keywords'.")
+Either 'all, a category string, or a numeric index into
+`task-find-categories'.")
 
 (defvar task-find--current-tags nil
   "Current tag list used by `task-find-menu'.
 
 A list of strings, or nil for no tag filter.")
 
-
 (defun task-find-transient-add-category ()
-  "Add a new task category to `task-find-keywords' and return to the menu.
+  "Add a new task category to `task-find-categories' and return to the menu.
 
 The name is normalised to UPPERCASE.  \"ALL\" is reserved and
 cannot be used.  If the category already exists, do nothing and
@@ -536,44 +537,44 @@ just report it."
           (message "Category name cannot be empty"))
          ((string-equal name "ALL")
           (message "\"ALL\" is reserved and cannot be used as a category"))
-         ((member name task-find-keywords)
+         ((member name task-find-categories)
           (message "Category \"%s\" already exists" name))
          (t
-          (let ((new-list (append task-find-keywords (list name))))
-            (task-find--set-keywords 'task-find-keywords new-list)
-            (customize-save-variable 'task-find-keywords new-list)
+          (let ((new-list (append task-find-categories (list name))))
+            (task-find--set-categories 'task-find-categories new-list)
+            (customize-save-variable 'task-find-categories new-list)
             (message "Added category \"%s\"" name))))))
     (transient-setup 'task-find-menu)))
 
 (defun task-find-transient-remove-category ()
-  "Remove an existing category from `task-find-keywords' and return to the menu.
+  "Remove an existing category from `task-find-categories' and return to the menu.
 
 Prompts with completion over current categories.  If the current
 category is removed, resets selection to ALL."
   (interactive)
-  (if (null task-find-keywords)
+  (if (null task-find-categories)
       (progn
         (message "No categories to remove")
         (transient-setup 'task-find-menu))
     (let* ((default (when (and (stringp task-find--current-kind)
-                               (member task-find--current-kind task-find-keywords))
+                               (member task-find--current-kind task-find-categories))
                       task-find--current-kind))
            (choice
             (condition-case nil
                 (completing-read
-                 "Remove category: " task-find-keywords nil t nil nil default)
+                 "Remove category: " task-find-categories nil t nil nil default)
               (quit
                (message "Category removal cancelled")
                (transient-setup 'task-find-menu)
                nil))))
       (when (and choice (not (string-empty-p choice)))
         (let ((name (string-trim choice)))
-          (if (not (member name task-find-keywords))
+          (if (not (member name task-find-categories))
               (message "Category \"%s\" not found" name)
             (when (yes-or-no-p (format "Really delete category \"%s\"? " name))
-              (let* ((new-list (delete name (copy-sequence task-find-keywords))))
-                (task-find--set-keywords 'task-find-keywords new-list)
-                (customize-save-variable 'task-find-keywords new-list)
+              (let* ((new-list (delete name (copy-sequence task-find-categories))))
+                (task-find--set-categories 'task-find-categories new-list)
+                (customize-save-variable 'task-find-categories new-list)
                 ;; If the current kind referred to this category, or is now
                 ;; an out-of-range index, fall back to ALL.
                 (when (or (and (stringp task-find--current-kind)
@@ -583,7 +584,6 @@ category is removed, resets selection to ALL."
                   (setq task-find--current-kind 'all))
                 (message "Deleted category \"%s\"" name))))))
       (transient-setup 'task-find-menu))))
-
 
 (defvar task-find--and-mode t
   "Non-nil means tags are combined with AND, nil means OR.")
@@ -602,38 +602,37 @@ category is removed, resets selection to ALL."
     "none"))
 
 (defun task-find--unknown-kind-p (kind)
-  "Return non-nil if KIND refers to a category not present in `task-find-keywords'.
+  "Return non-nil if KIND refers to a category not present in `task-find-categories'.
 
 KIND may be:
   - 'all                     => never unknown
-  - a keyword string         => unknown if not in `task-find-keywords'
+  - a category string        => unknown if not in `task-find-categories'
   - a numeric index          => unknown if out of range
   - anything else            => treated as unknown."
   (cond
    ;; 'all is always valid
    ((eq kind 'all) nil)
-   ;; strings: unknown if not one of the configured keywords (and not ALL)
+   ;; strings: unknown if not one of the configured categories (and not ALL)
    ((stringp kind)
     (and (not (string-equal kind "ALL"))
-         (not (member kind task-find-keywords))))
+         (not (member kind task-find-categories))))
    ;; numeric indices: unknown if out of range
    ((numberp kind)
-    (not (nth kind task-find-keywords)))
+    (not (nth kind task-find-categories)))
    ;; everything else is considered unknown
    (t t)))
-
 
 (defun task-find--transient-kind-display ()
   "Return human-readable KIND summary for transient header.
 
 Shows \"(unknown)\" when the currently selected category no
-longer exists in `task-find-keywords', but is still referenced
+longer exists in `task-find-categories', but is still referenced
 by a saved search or programmatic call."
   (let ((k task-find--current-kind))
     (cond
      ((eq k 'all) "ALL")
      ((numberp k)
-      (let ((name (nth k task-find-keywords)))
+      (let ((name (nth k task-find-categories)))
         (if name
             name
           (format "#%d (unknown)" k))))
@@ -644,7 +643,7 @@ by a saved search or programmatic call."
      (t "ALL"))))
 
 (defun task-find-transient-select-all ()
-  "Select ALL keywords as the current kind for `task-find-menu'."
+  "Select ALL categories as the current kind for `task-find-menu'."
   (interactive)
   (setq task-find--current-kind 'all)
   (message "Category: ALL")
@@ -661,7 +660,7 @@ by a saved search or programmatic call."
 
 Uses `task-find--current-tags' and `task-find--and-mode'."
   (when (and (numberp kind)
-             (not (nth kind task-find-keywords)))
+             (not (nth kind task-find-categories)))
     (user-error "No category configured at index %d" kind))
   (setq task-find--current-kind kind)
   (let ((tags (task-find--transient-tags-string)))
@@ -704,12 +703,12 @@ C-g cancels and returns to the transient menu without changing tags."
   (transient-setup 'task-find-menu))
 
 (defun task-find-transient-search-all ()
-  "Search using all keywords."
+  "Search using all categories."
   (interactive)
   (task-find--search 'all))
 
 (defun task-find-transient-run ()
-  "Run task search using current keyword and tag settings."
+  "Run task search using current category and tag settings."
   (interactive)
   (let ((kind (or task-find--current-kind 'all)))
     (task-find--search kind)))
@@ -729,8 +728,8 @@ afterwards to execute."
        "No saved searches configured. Use `M-x customize-group RET task-find RET' to add some."))
     (let* ((label (completing-read "Saved search: " labels nil t))
            (data  (task-find--find-saved-search label)))
-      (pcase-let ((`(,kw ,mode ,tags) data))
-        (setq task-find--current-kind (task-find--normalise-saved-kind kw)
+      (pcase-let ((`(,cat ,mode ,tags) data))
+        (setq task-find--current-kind (task-find--normalise-saved-kind cat)
               task-find--and-mode     (eq mode 'and))
         (task-find--set-tags-from-string tags)
         (message "Loaded saved search: %s (category=%s, mode=%s, tags=%s)"
@@ -744,8 +743,8 @@ afterwards to execute."
 (transient-define-prefix task-find-menu ()
   "Project task search using `task-find' and transient.
 
-0/1/2/... select which keyword scope to use.
-RET runs the search with the selected keyword and current tag settings."
+0/1/2/... select which category scope to use.
+RET runs the search with the selected category and current tag settings."
   ;; ------------------------------------------------------------------
   ;; CATEGORY
   ;; ------------------------------------------------------------------
@@ -756,8 +755,8 @@ RET runs the search with the selected keyword and current tag settings."
              (task-find--transient-kind-display)))
    ;; 0 = ALL (anchor for dynamic 1–9 insertion)
    ("0" "ALL"             task-find-transient-select-all)
-   ;; 1–9 are added dynamically by `task-find--rebuild-menu-keywords`
-   ;; "c" (Choose…) will also be added dynamically when needed.
+   ;; 1–9 are added dynamically by `task-find--rebuild-menu-categories`
+   ;; \"More…\" will also be added dynamically when needed.
    ("n" "New category"    task-find-transient-add-category)
    ("r" "Remove category" task-find-transient-remove-category)]
 
@@ -793,21 +792,19 @@ RET runs the search with the selected keyword and current tag settings."
       (interactive)
       (task-find-search 'all "" t)))])
 
-;; TODO[bertha, urgent, dog]
+(defun task-find--rebuild-menu-categories ()
+  "Rebuild numeric category bindings (1–9) for `task-find-menu'.
 
-(defun task-find--rebuild-menu-keywords ()
-  "Rebuild numeric keyword bindings (1–9) for `task-find-menu'.
-
-Also adds or removes the \"Choose…\" (\"c\") entry depending on
-how many categories exist.  \"Choose…\" is only shown if there
+Also adds or removes the \"More…\" (\"m\") entry depending on
+how many categories exist.  \"More…\" is only shown if there
 are more categories than the numeric shortcuts can cover."
   ;; Remove existing numeric suffixes.
   (dolist (key '("1" "2" "3" "4" "5" "6" "7" "8" "9"))
     (transient-remove-suffix 'task-find-menu key))
-  ;; Remove any existing \"c\" entry; we'll re-add it if needed.
-  (transient-remove-suffix 'task-find-menu "c")
-  ;; Add suffixes for keyword indices 0–8 (keys 1–9), in order.
-  (let ((max (min 9 (length task-find-keywords)))
+  ;; Remove any existing \"m\" entry; we'll re-add it if needed.
+  (transient-remove-suffix 'task-find-menu "m")
+  ;; Add suffixes for category indices 0–8 (keys 1–9), in order.
+  (let ((max (min 9 (length task-find-categories)))
         (anchor "0"))  ;; start inserting after \"0\"
     (dotimes (i max)
       (let* ((key (number-to-string (1+ i))) ; \"1\"..\"9\"
@@ -817,34 +814,34 @@ are more categories than the numeric shortcuts can cover."
             ""
             ,cmd
             :if (lambda ()
-                  (nth ,i task-find-keywords))
+                  (nth ,i task-find-categories))
             :description (lambda ()
-                           (nth ,i task-find-keywords))))
+                           (nth ,i task-find-categories))))
         ;; next insertion goes after the key we just added
         (setq anchor key)))
-    ;; Only show \"Choose…\" when there are *more* categories than
+    ;; Only show \"More…\" when there are *more* categories than
     ;; the numeric shortcuts can represent.
-    (when (> (length task-find-keywords) 9)
+    (when (> (length task-find-categories) 9)
       (transient-append-suffix 'task-find-menu anchor
-        '("m" "More…" task-find-transient-select-custom-keyword)))))
+        '("m" "More…" task-find-transient-select-custom-category)))))
 
-(defun task-find-transient-select-custom-keyword ()
-  "Select a keyword from `task-find-keywords' as the current kind.
+(defun task-find-transient-select-custom-category ()
+  "Select a category from `task-find-categories' as the current kind.
 
 Does not run the search; use RET to execute.
 C-g while choosing cancels and returns to the transient menu."
   (interactive)
-  (if (null task-find-keywords)
-      (user-error "No category configured in `task-find-keywords'")
+  (if (null task-find-categories)
+      (user-error "No category configured in `task-find-categories'")
     (let* ((default
              (when (and (stringp task-find--current-kind)
-                        (member task-find--current-kind task-find-keywords))
+                        (member task-find--current-kind task-find-categories))
                task-find--current-kind))
            (choice
             (condition-case nil
                 (completing-read
                  "Category: "
-                 task-find-keywords
+                 task-find-categories
                  nil t nil nil default)
               (quit
                (message "Category selection cancelled")
@@ -873,15 +870,15 @@ C-g while choosing cancels and returns to the transient menu."
       ;; truncate and add ellipsis
       (concat (substring s 0 (1- width)) "…")))))
 
-;; Helper for macro that builds the dynamic keyword list
+;; Helper for macro that builds the dynamic category list
 (defun task-find--select-index (i)
-  "Select keyword index I in `task-find-menu' and redisplay the menu."
-  (when (nth i task-find-keywords)
+  "Select category index I in `task-find-menu' and redisplay the menu."
+  (when (nth i task-find-categories)
     (setq task-find--current-kind i)
-    (message "Selected: %s" (nth i task-find-keywords)))
+    (message "Selected: %s" (nth i task-find-categories)))
   (transient-setup 'task-find-menu))
 
-;; Macro for generating the transient actions for selecting keyword indices.
+;; Macro for generating the transient actions for selecting category indices.
 (eval-and-compile
   (defmacro task-find--define-select-functions ()
     "Define numeric selector commands for `task-find-menu'."
@@ -918,8 +915,8 @@ via `customize-save-variable'."
   (when (string-empty-p label)
     (user-error "Label cannot be empty"))
   (let* ((existing    (assoc label task-find-saved-searches))
-         (keyword-str (task-find--kind-to-saved-keyword
-                       task-find--current-kind))
+         (category-str (task-find--kind-to-saved-category
+                        task-find--current-kind))
          (mode        (if task-find--and-mode 'and 'or))
          (tags        (task-find--transient-tags-string))
          (should-save t))
@@ -932,12 +929,12 @@ via `customize-save-variable'."
       ;; Properly overwrite by deleting all entries with this label, then consing
       ;; the new one at the front. `assoc-delete-all` uses `equal` for strings.
       (setq task-find-saved-searches
-            (cons (list label keyword-str mode tags)
+            (cons (list label category-str mode tags)
                   (assoc-delete-all label task-find-saved-searches)))
       (customize-save-variable 'task-find-saved-searches
                                task-find-saved-searches)
-      (message "Saved search \"%s\" (keyword=%s, mode=%s, tags=%s)"
-               label keyword-str (if task-find--and-mode "AND" "OR") tags)))
+      (message "Saved search \"%s\" (category=%s, mode=%s, tags=%s)"
+               label category-str (if task-find--and-mode "AND" "OR") tags)))
   (transient-setup 'task-find-menu))
 
 (defun task-find-transient-delete-saved-search ()
@@ -965,7 +962,7 @@ then removes the entry and saves the updated value."
   (transient-setup 'task-find-menu))
 
 ;; Always rebuild numeric category shortcuts when opening the menu.
-(advice-add 'task-find-menu :before #'task-find--rebuild-menu-keywords)
+(advice-add 'task-find-menu :before #'task-find--rebuild-menu-categories)
 
 (provide 'task-find)
 
