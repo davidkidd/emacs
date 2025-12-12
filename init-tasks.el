@@ -1,20 +1,19 @@
-(use-package task-find
-  :ensure nil
-  :load-path "~/projects/task-find"
+(ensure-vc-package
+ 'task-find
+ "https://github.com/davidkidd/task-find")
 
+(use-package task-find
   :init
-  ;; Set up behaviour before the package loads
   (setq task-find-highlight-scope 'custom
         task-find-highlight-custom-predicate
         #'my-task-find-highlight-not-in-code-string)
 
   :config
-  ;; Faces and global mode after the feature is loaded
   (set-face-attribute 'task-find-face-category nil
-    :foreground "#999999"
-    :weight 'bold)
+                      :foreground "#999999"
+                      :weight 'bold)
   (set-face-attribute 'task-find-face-tag nil
-    :foreground "#999999")
+                      :foreground "#999999")
   (global-task-find-hl-mode 1))
 
 ;; Helper: custom predicate for highlighting
