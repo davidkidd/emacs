@@ -21,6 +21,12 @@
   (package-refresh-contents)
   (package-install 'use-package))
 
+;; For custom package downloads
+(defun ensure-vc-package (name repo)
+  "Ensure NAME is installed from Git REPO."
+  (unless (package-installed-p name)
+    (package-vc-install repo)))
+
 (require 'use-package)
 (setq use-package-always-ensure t)
 
@@ -36,11 +42,18 @@
 
 (setq custom-file (expand-file-name "custom.el" custom-dir))
 
-;; Environment
+;;; Environment
 
-(use-package exec-path-from-shell
-  :config
-  (exec-path-from-shell-initialize))
+(cond
+ ;; Linux / macOS: import shell environment
+ ((memq system-type '(gnu/linux darwin))
+  (use-package exec-path-from-shell
+    :config
+    (exec-path-from-shell-initialize)))
+
+ ;; Windows: do nothing here
+ ;; (PATH is taken from the parent process)
+ )
 
 ;; UI, theme etc
 
