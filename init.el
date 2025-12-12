@@ -1,160 +1,191 @@
-;; Make sure it sees our path
-(use-package exec-path-from-shell
-  :ensure t
-  :config
-  (exec-path-from-shell-initialize))
+;;; init.el --- Personal Emacs init -*- lexical-binding: t; -*-
+;;; Commentary:
+;;; Code:
 
-;; Set our custom file setup
-;; Add the "custom" directory to the load path
-(defconst custom-dir (expand-file-name "custom" user-emacs-directory)
-  "Full path to the custom configuration directory.")
-(add-to-list 'load-path custom-dir)
-;; Simple theme
-(use-package novarange-theme
-  :ensure nil  ;; Indicates that the package is not available via package repositories
-  :config
-  (load-theme 'novarange t))  ;; Loads and activates the theme without confirmation
-
-(use-package solaire-mode)
-(solaire-global-mode +1)
-(add-hook 'after-load-theme-hook #'solaire-mode-swap-bg)
-
-;; Start the server so I can use emacsclient to interact with it
-(server-start)
-
-;; Set up our package management
+;; Basic setup
 (require 'package)
 
+;; TLS tweak
+(defvar gnutls-algorithm-priority)
 (setq gnutls-algorithm-priority "NORMAL:-VERS-TLS1.3")
 
-(setq package-archives '(("melpa" . "https://melpa.org/packages/")
-                         ("org" . "https://orgmode.org/elpa/")
-			 ("nongnu" . "https://elpa.nongnu.org/nongnu/")
-                         ("gnu" . "https://elpa.gnu.org/packages/")))
+(setq package-archives
+      '(("melpa"  . "https://melpa.org/packages/")
+        ("org"    . "https://orgmode.org/elpa/")
+        ("nongnu" . "https://elpa.nongnu.org/nongnu/")
+        ("gnu"    . "https://elpa.gnu.org/packages/")))
+
 (package-initialize)
 
 (unless (package-installed-p 'use-package)
+  (package-refresh-contents)
   (package-install 'use-package))
 
 (require 'use-package)
 (setq use-package-always-ensure t)
 
-;; Make emacs normal
+;;; Custom config
+(defconst custom-dir (expand-file-name "custom" user-emacs-directory)
+  "Full path to the custom configuration directory.")
 
-;; General settings
+(unless (file-directory-p custom-dir)
+  (make-directory custom-dir t))
+
+(add-to-list 'load-path custom-dir)
+(add-to-list 'custom-theme-load-path custom-dir)
+
+(setq custom-file (expand-file-name "custom.el" custom-dir))
+
+;; Environment
+
+(use-package exec-path-from-shell
+  :config
+  (exec-path-from-shell-initialize))
+
+;; UI, theme etc
+
+;; Theme loading assumes `novarange-theme` is available in `custom-dir`
+;; or another directory on `custom-theme-load-path`.
+
+(declare-function solaire-mode-swap-bg "solaire-mode");; forward dec
+(use-package solaire-mode
+  :init
+  ;; When themes change, keep solaire in sync
+  (add-hook 'after-load-theme-hook #'solaire-mode-swap-bg)
+  :config
+  (solaire-global-mode +1))
+
+;; Load theme after solaire is ready to react
+(load-theme 'novarange t)
+
+;; Disable UI chrome
+(dolist (mode '(scroll-bar-mode tool-bar-mode menu-bar-mode))
+  (when (fboundp mode)
+    (funcall mode -1)))
+
+;; Default cursor
+(setq-default cursor-type 'bar)
+
+;; Set font if available
+(let ((desired-font "FiraCode Nerd Font")
+      (font-size 100)) ;; height, in 1/10pt
+  (when (find-font (font-spec :name desired-font))
+    (add-to-list 'default-frame-alist
+                 `(font . ,(format "%s-%d" desired-font (/ font-size 10))))
+    (set-face-attribute 'default nil :font desired-font :height font-size)))
+
+;;; Server
+
+(require 'server)
+(unless (server-running-p)
+  (server-start))
+
+;;; General
+
+
+(defvar quit-restore-window-configuration)
 (setq inhibit-startup-message t
       initial-scratch-message ";; scratch\n\n"
       delete-by-moving-to-trash t
       quit-restore-window-configuration nil
-      ring-bell-function 'ignore
+      ring-bell-function #'ignore
       scroll-margin 0)
 
 (electric-pair-mode 1)
-(defun my-electric-pair-inhibit (char)
+
+(defun my-electric-pair-inhibit (_char)
+  "Inhibit pairing inside words."
   (let ((prev-char (char-before)))
-    (or (eq (char-syntax prev-char) ?w)
+    (or (and prev-char
+             (eq (char-syntax prev-char) ?w))
         (looking-at-p "[[:word:]]"))))
 
 (add-hook 'prog-mode-hook
           (lambda ()
-            (setq-local electric-pair-inhibit-predicate #'my-electric-pair-inhibit)))
+            (setq-local electric-pair-inhibit-predicate
+                        #'my-electric-pair-inhibit)))
 
-(fset 'yes-or-no-p 'y-or-n-p)
+(fset 'yes-or-no-p #'y-or-n-p)
 (delete-selection-mode 1)
 
-(setq backup-directory-alist `(("." . "~/.emacs.d/emacs-backups")))
+(defun disable-flycheck-in-scratch ()
+  "Turn off flycheck (and potentionally others) in *scratch*."
+  (when (string= (buffer-name) "*scratch*")
+    (when (bound-and-true-p flycheck-mode)
+      (flycheck-mode -1))
+    ))
 
-(use-package drag-stuff
-  :ensure t
-  :defer t  ; Defer loading until needed
-  :bind (:map drag-stuff-mode-map
-              ("M-p" . drag-stuff-up)
-              ("M-n" . drag-stuff-down))
-  :hook
-  ((text-mode . drag-stuff-mode)
-   (prog-mode . drag-stuff-mode)))
+(add-hook 'lisp-interaction-mode-hook #'disable-flycheck-in-scratch)
 
-;; Disable UI elements
-(dolist (mode '(scroll-bar-mode tool-bar-mode menu-bar-mode))
-  (when (fboundp mode) (funcall mode -1)))
+;; Backups
+(let ((backup-dir (expand-file-name "emacs-backups" user-emacs-directory)))
+  (unless (file-directory-p backup-dir)
+    (make-directory backup-dir t))
+  (setq backup-directory-alist `(("." . ,backup-dir))))
 
-;; General key bindings
-(use-package emacs
-  :bind (("C-c C-a" . mark-whole-buffer)
-         ("C-c a" . mark-whole-buffer)
-         ("C-\\" . counsel-M-x)
-	 ("C-c b" . counsel-switch-buffer)
-	 ("M-y" . counsel-yank-pop)
-	 ("C-c SPC" . counsel-buffer-or-recentf)
-         ("M-0" . fixup-whitespace)
-         ("C->" . scroll-up)
-         ("C-<" . scroll-down)
-	 ("C-M-l" . duplicate-dwim)
-	 ("M-]" . forward-paragraph)
-         ("M-[" . backward-paragraph)
-	 ("C-c o" . delete-other-windows)
-	 ("C-c 0" . delete-window)
-	 ("C-;"   . er/expand-region)
-	 ("C-M-;"   . er/contract-region)
-         ("C-c ]" . next-buffer)
-         ("C-c [" . previous-buffer)))
+;; Line numbers only in programming buffers
+(add-hook 'prog-mode-hook #'display-line-numbers-mode)
+(defvar display-line-numbers-type)
+(setq display-line-numbers-type t)
 
-         ;; ("C-;" . goto-line)))
+;; Highlight current line
+(global-hl-line-mode 1)
 
-;; Make sure these keys always available
-(use-package bind-key
-   :config
-   (bind-key* "C-\\" 'counsel-M-x)
-   (bind-key* "C-]" 'counsel-projectile-switch-to-buffer)
-   (bind-key* "C-." 'forward-word)
-   (bind-key* "C-," 'backward-word)
-   (bind-key* "C-M-'" 'avy-goto-line)
-   (bind-key* "C-\"" 'avy-zap-up-to-char)
-   (bind-key* "C-'" 'avy-goto-char)
-)
+;; Fill column indicator in prog modes
+(add-hook 'prog-mode-hook #'display-fill-column-indicator-mode)
+(setq-default fill-column 100)
+(set-face-attribute 'fill-column-indicator nil
+                    :foreground "#202020"
+                    :background nil)
 
-;; Remove noise from mode-line, except for
-;; the specied ones
+;; Mode-line cleanups
+(line-number-mode 0)
+
 (use-package minions
   :config
   (minions-mode 1)
   (add-to-list 'minions-prominent-modes 'flycheck-mode)
   (add-to-list 'minions-prominent-modes 'lsp-mode))
 
-;; Remove line number from mode-line
-(line-number-mode 0)
+;;; Line numbers
 
-;; Visual undo (like undo-tree)
-(use-package vundo
-  :ensure t
-  :bind (("C-c v" . vundo)) ; Global keybinding
-  :config
-  ;; Keybindings within vundo-mode-map
-  (define-key vundo-mode-map (kbd ",") 'vundo-backward)
-  (define-key vundo-mode-map (kbd ".") 'vundo-forward))
+(require 'color)
 
-;; golden ratio for resizing
-(use-package golden-ratio) ;
-;; don't turn on automatically, just use a keybind
-(global-set-key (kbd "C-c =") 'golden-ratio)
+(let* ((face 'line-number)
+       (current (face-foreground face nil t))
+       (dimmed (if current
+                   (color-darken-name current 50)
+                 "#707070")))
+  (set-face-foreground face dimmed))
 
-;; Automatically switch to new window after splits
+(let* ((face 'line-number-current-line)
+       (current (face-foreground face nil t))
+       (bright (if current
+                   (color-lighten-name current 70)
+                 "#707070")))
+  (set-face-foreground face bright))
+
+;;; Window management
+
 (defun split-and-follow-horizontally ()
+  "Split window below and focus the new one."
   (interactive)
   (split-window-below)
   (balance-windows)
   (other-window 1))
-(global-set-key (kbd "C-x 2") 'split-and-follow-horizontally)
 
 (defun split-and-follow-vertically ()
+  "Split window right and focus the new one."
   (interactive)
   (split-window-right)
   (balance-windows)
   (other-window 1))
-(global-set-key (kbd "C-x 3") 'split-and-follow-vertically)
+
+(global-set-key (kbd "C-x 2") #'split-and-follow-horizontally)
+(global-set-key (kbd "C-x 3") #'split-and-follow-vertically)
 
 (defun copy-current-line ()
-  "Copy the current line into the kill ring"
+  "Copy the current line into the kill ring."
   (interactive)
   (save-excursion
     (beginning-of-line)
@@ -163,139 +194,166 @@
       (kill-ring-save start (point))
       (message "Copied whole line"))))
 
-(global-set-key (kbd "C-c w") 'copy-current-line)
+(global-set-key (kbd "C-c w") #'copy-current-line)
 
-;; Set default cursor type
-(setq-default cursor-type 'bar)  ;; Default to bar cursor
+;; Golden ratio (manual trigger)
+(use-package golden-ratio
+  :bind (("C-c =" . golden-ratio)))
 
-;; Set font if we have it 
-(let ((desired-font "FiraCode Nerd Font")
-      (font-size 100))
-  (if (find-font (font-spec :name desired-font))
-      (progn
-        (add-to-list 'default-frame-alist `(font . ,(format "%s-%d" desired-font (/ font-size 10))))
-        (set-face-attribute 'default nil :font desired-font :height font-size))
-    (message "Desired font \"%s\" not found." desired-font)))
+;;; Helpers
 
-(require 'color)
-(let* ((linum-face 'line-number)
-       (current-color (face-foreground linum-face nil t))
-       (dimmed-color (if current-color
-                         (color-darken-name current-color 50)
-                       "#707070")))
-  (set-face-foreground linum-face dimmed-color))
+(defun duplicate-dwim ()
+  "Duplicate current line, or active region if any."
+  (interactive)
+  (if (use-region-p)
+      (let ((text (buffer-substring (region-beginning) (region-end))))
+        (goto-char (region-end))
+        (newline)
+        (insert text))
+    (save-excursion
+      (let ((line (thing-at-point 'line t)))
+        (end-of-line)
+        (newline)
+        (insert line)))))
 
-(let* ((current-linum-face 'line-number-current-line)
-       (current-color (face-foreground current-linum-face nil t))
-       (less-dimmed-color (if current-color
-                              (color-lighten-name current-color 70)
-			    "#707070")))
-  (set-face-foreground current-linum-face less-dimmed-color))
+;;; Keybinds and basic use
 
-;; Basic config
+;; Core bindings that conceptually belong to `emacs` itself
+(use-package emacs
+  :bind (("C-c C-a" . mark-whole-buffer)
+         ("C-c a"   . mark-whole-buffer)
+         ("M-0"     . fixup-whitespace)
+         ("C->"     . scroll-up)
+         ("C-<"     . scroll-down)
+         ("M-]"     . forward-paragraph)
+         ("M-["     . backward-paragraph)
+         ("C-c o"   . delete-other-windows)
+         ("C-c 0"   . delete-window)
+         ("C-c ]"   . next-buffer)
+         ("C-c ["   . previous-buffer)
+         ("C-M-l"   . duplicate-dwim)))
 
-;; Display line numbers in these modes
-(add-hook 'prog-mode-hook 'display-line-numbers-mode)
-(setq display-line-numbers-type t)
-;; Highlight current line
-(global-hl-line-mode 1)
+;; Make some keys globally dominant
+(use-package bind-key
+  :config
+  (bind-key* "C-\\" #'counsel-M-x)
+  (bind-key* "C-]"  #'counsel-projectile-switch-to-buffer)
+  (bind-key* "C-."  #'forward-word)
+  (bind-key* "C-,"  #'backward-word))
 
-;; Vertical line at N cols
-(add-hook 'prog-mode-hook #'display-fill-column-indicator-mode)
-(setq-default fill-column 100)
-(set-face-attribute 'fill-column-indicator nil
-                    :foreground "#202020" ;; Adjust color for subtlety
-                    :background nil)
+;; Drag lines/regions with M-p / M-n
+(use-package drag-stuff
+  :hook ((text-mode . drag-stuff-mode)
+         (prog-mode . drag-stuff-mode))
+  :bind (:map drag-stuff-mode-map
+              ("M-p" . drag-stuff-up)
+              ("M-n" . drag-stuff-down)))
 
+;; Visual undo
+(declare-function vundo-backward "vundo")
+(declare-function vundo-forward  "vundo")
+(use-package vundo
+  :bind (("C-c v" . vundo))
+  :config
+  (define-key vundo-mode-map (kbd ",") #'vundo-backward)
+  (define-key vundo-mode-map (kbd ".") #'vundo-forward))
+
+;; Ace window
 (use-package ace-window
   :bind (("M-o" . ace-window)
-	 ("M-O" . ace-swap-window)))
+         ("M-O" . ace-swap-window)))
 
+;; Multiple cursors
 (use-package multiple-cursors
   :bind (("C-S-c C-S-c" . mc/edit-lines)
-	 ("M-S-SPC" . mc/mark-all-dwim)))
+         ("M-S-SPC"      . mc/mark-all-dwim)))
 
-;; ripgrep
-(use-package rg)
-(setq xref-search-program 'ripgrep)
+;; Avy navigation
+(use-package avy
+  :bind (("C-'"   . avy-goto-char)
+         ("C-M-'" . avy-goto-line)
+         ("C-\""  . avy-zap-up-to-char)))
 
-;; search, narrowing
-(use-package counsel
-  :init (ivy-mode 1) 
-  :bind (("M-x" . counsel-M-x)
-	 ("C-c SPC" . counsel-buffer-or-recentf)))
-
-(use-package smex)
-
-(global-set-key (kbd "C-s") 'swiper)
-(global-set-key (kbd "C-S-s") 'swiper-thing-at-point)
-
-;; avy and colours
-(global-set-key (kbd "C-'") 'avy-goto-char)
 (custom-set-faces
- '(avy-lead-face ((t (:foreground "black" :background "white"))))
+ '(avy-lead-face   ((t (:foreground "black" :background "white"))))
  '(avy-lead-face-0 ((t (:foreground "white" :background "orange"))))
  '(avy-lead-face-1 ((t (:foreground "black" :background "green"))))
  '(avy-lead-face-2 ((t (:foreground "white" :background "blue")))))
 
-(use-package projectile
-  :init (projectile-mode 1))
-(define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
-(setq projectile-indexing-method 'alien)
+;;; Completion, search, nav
 
-(use-package counsel-projectile
-  ;; :after projectile  ; ensures Projectile loads first
-  ;; :config
-  ;; (counsel-projectile-mode 1)
-  )
+(use-package which-key
+  :init (which-key-mode 1))
+
+(use-package counsel
+  :init (ivy-mode 1)
+  :bind (("M-x"     . counsel-M-x)
+         ("C-c SPC" . counsel-buffer-or-recentf)
+         ("C-c b"   . counsel-switch-buffer)
+         ("M-y"     . counsel-yank-pop)))
+
+(use-package smex)
+
+(global-set-key (kbd "C-s")   #'swiper)
+(global-set-key (kbd "C-S-s") #'swiper-thing-at-point)
+
+(use-package ivy-prescient
+  :init (ivy-prescient-mode 1))
 
 (use-package company
+  :hook (prog-mode . company-mode)
   :bind (:map company-active-map
               ("<tab>" . company-complete-selection))
   :config
-(add-hook 'prog-mode-hook 'company-mode)
-(setq company-format-margin-function nil))
-
-;; Remove the text completion backend
-(with-eval-after-load 'company
+  (setq company-format-margin-function nil)
+  ;; Strip dabbrev backends
   (setq company-backends (remove 'company-dabbrev company-backends))
   (setq company-backends (remove 'company-dabbrev-code company-backends)))
 
-(use-package which-key
-  :ensure t
-  :init (which-key-mode 1))
-
-(use-package ivy-prescient
-  :init (ivy-prescient-mode))
-
 (use-package company-prescient
-  :init (company-prescient-mode))
+  :after company
+  :init (company-prescient-mode 1))
 
-(use-package flycheck)
+(use-package projectile
+  :init (projectile-mode 1)
+  :bind-keymap ("C-c p" . projectile-command-map)
+  :config
+  (setq projectile-indexing-method 'alien))
+
+(use-package counsel-projectile
+  :after (projectile counsel))
+
+;;; Tools
+
+(use-package rg
+  :config
+  (setq xref-search-program 'ripgrep))
+
+(use-package flycheck
+  :hook (prog-mode . flycheck-mode))
 
 (use-package magit)
 
-;; Better proced
 (use-package proced-narrow
-  :ensure t
   :after proced
   :bind (:map proced-mode-map
               ("/" . proced-narrow)))
 
-;; Zen
-(load-file (concat user-emacs-directory "init-zen.el"))
+;;; Load my other init files
 
-;; Dired
-(load-file (concat user-emacs-directory "init-dired.el"))
+(dolist (file '("init-zen.el"
+                "init-dired.el"
+                "init-lsp.el"
+                "init-tasks.el"
+                "init-posframe.el"
+                ))
+  (let ((path (expand-file-name file user-emacs-directory)))
+    (when (file-exists-p path)
+      (load-file path))))
 
-;; LSP
-(load-file (concat user-emacs-directory "init-lsp.el"))
+;;; Load custom file
 
-;; Task tracking
-(load-file (concat user-emacs-directory "init-tasks.el"))
+(when (file-exists-p custom-file)
+  (load custom-file))
 
-;; posframe, like ST or VSC's omnipanel
-(load-file (concat user-emacs-directory "init-posframe.el"))
-
-(setq custom-file (expand-file-name "custom.el" custom-dir))
-(load-file custom-file)
+;;; init.el ends here
