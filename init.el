@@ -4,7 +4,6 @@
   :config
   (exec-path-from-shell-initialize))
 
-
 ;; Set our custom file setup
 ;; Add the "custom" directory to the load path
 (defconst custom-dir (expand-file-name "custom" user-emacs-directory)
@@ -250,11 +249,6 @@
   ;; (counsel-projectile-mode 1)
   )
 
-;; Ignore ~ and cached files (eg clangd)
-;; (with-eval-after-load 'counsel
-;;   (setq counsel-find-file-ignore-regexp "\\(~\\)$\\|\\.cache/clangd/"))
-
-
 (use-package company
   :bind (:map company-active-map
               ("<tab>" . company-complete-selection))
@@ -288,17 +282,6 @@
   :bind (:map proced-mode-map
               ("/" . proced-narrow)))
 
-;;;; vi
-;;(load-file (concat user-emacs-directory "init-vi.el"))
-
-;;meow-mode
-;; (load-file (concat user-emacs-directory "init-meow.el"))
-
-;; (load-file (concat user-emacs-directory "init-boon.el"))
-
-;; ;;god-mode
-;; (load-file (concat user-emacs-directory "init-god.el"))
-
 ;; Zen
 (load-file (concat user-emacs-directory "init-zen.el"))
 
@@ -311,51 +294,8 @@
 ;; Task tracking
 (load-file (concat user-emacs-directory "init-tasks.el"))
 
-(with-eval-after-load 'task-find
-  (set-face-attribute 'task-find-face-category nil
-    :foreground "#999999"
-    :weight 'bold)
-  (set-face-attribute 'task-find-face-tag nil
-		      :foreground "#999999"))
-
-(require 'task-find)
-
-(defun my/project-urgent-todos ()
-  "Jump straight to all urgent TODOs in the current project."
-  (interactive)
-  (task-find-run-this "BUG" '("urgent" "re:dav.*") nil))
-
-(defun my-task-find-highlight-not-in-code-string ()
-  "Return non-nil when `task-find' should highlight at point.
-
-Allows highlighting everywhere *except* code string literals.
-Docstrings (which usually use `font-lock-doc-face') are still
-treated as documentation, so they are allowed."
-  (let* ((ppss      (syntax-ppss))
-         (in-string (nth 3 ppss))
-         (face      (or (get-text-property (point) 'face)
-                        (get-text-property (point) 'font-lock-face)))
-         (faces     (if (listp face) face (list face)))
-         (doc-p     (memq 'font-lock-doc-face faces)))
-    ;; Highlight if we're not in a string, or if this is a docstring.
-    (or (not in-string) doc-p)))
-
-(setq task-find-highlight-scope 'custom
-      task-find-highlight-custom-predicate
-      #'my-task-find-highlight-not-in-code-string)
-
-
-(global-task-find-hl-mode 1)
-
 ;; posframe, like ST or VSC's omnipanel
 (load-file (concat user-emacs-directory "init-posframe.el"))
 
-;; LLM and code assist
-(load-file (concat user-emacs-directory "init-ai.el"))
-
-;; Music etc
-(load-file (concat user-emacs-directory "init-media.el"))
-
 (setq custom-file (expand-file-name "custom.el" custom-dir))
 (load-file custom-file)
-
