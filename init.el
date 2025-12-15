@@ -250,7 +250,7 @@
 (use-package bind-key
   :config
   (bind-key* "C-\\" #'counsel-M-x)
-  (bind-key* "C-]"  #'counsel-projectile-switch-to-buffer)
+  (bind-key* "C-]"  #'project-switch-to-buffer)
   (bind-key* "C-."  #'forward-word)
   (bind-key* "C-,"  #'backward-word))
 
@@ -327,14 +327,11 @@
   :after company
   :init (company-prescient-mode 1))
 
-(use-package projectile
-  :init (projectile-mode 1)
-  :bind-keymap ("C-c p" . projectile-command-map)
-  :config
-  (setq projectile-indexing-method 'alien))
+(use-package project
+  :ensure nil            ;; built-in
+  :bind-keymap
+  ("C-c p" . project-prefix-map))
 
-(use-package counsel-projectile
-  :after (projectile counsel))
 
 ;;; Tools
 
