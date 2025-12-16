@@ -42,6 +42,12 @@
 
 (setq custom-file (expand-file-name "custom.el" custom-dir))
 
+;;; Load custom file
+
+(when (file-exists-p custom-file)
+  (load custom-file))
+
+
 ;;; Environment
 
 (cond
@@ -50,7 +56,6 @@
   (use-package exec-path-from-shell
     :config
     (exec-path-from-shell-initialize)))
-
  ;; Windows: do nothing here
  ;; (PATH is taken from the parent process)
  )
@@ -94,7 +99,6 @@
   (server-start))
 
 ;;; General
-
 
 (defvar quit-restore-window-configuration)
 (setq inhibit-startup-message t
@@ -332,7 +336,6 @@
   :bind-keymap
   ("C-c p" . project-prefix-map))
 
-
 ;;; Tools
 
 (use-package rg
@@ -361,9 +364,5 @@
     (when (file-exists-p path)
       (load-file path))))
 
-;;; Load custom file
-
-(when (file-exists-p custom-file)
-  (load custom-file))
 
 ;;; init.el ends here
