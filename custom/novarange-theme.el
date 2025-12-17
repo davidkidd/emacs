@@ -53,7 +53,7 @@
       (unspec   (when (>= emacs-major-version 29) 'unspecified)))
   (custom-theme-set-faces
    'novarange
-   `(default ((,class (:background ,bg1 :foreground ,fg1))))
+   `(default ((,class (:background "#000000" :foreground ,fg1))))
    `(font-lock-builtin-face ((,class (:foreground ,builtin))))
    `(font-lock-comment-face ((,class (:foreground ,comment))))
 	 `(font-lock-negation-char-face ((,class (:foreground ,const))))
@@ -73,7 +73,7 @@
    `(region ((,class (:background ,selection))))
    `(highlight ((,class (:foreground ,fg3 :background ,bg3))))
 	 `(hl-line ((,class (:background  ,bg2))))
-	 `(fringe ((,class (:background ,bg1 :foreground ,fg4))))
+	 `(fringe ((,class (:background "#000000" :foreground ,fg4))))
 	 `(cursor ((,class (:background ,fg4))))
    `(isearch ((,class (:bold t :foreground ,warning :background ,bg3))))
    ;; `(mode-line ((,class (:box (:line-width 1 :color nil) :bold t :foreground ,fg4 :background ,bg2)))) 
