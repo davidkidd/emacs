@@ -334,6 +334,12 @@
 (use-package ivy-prescient
   :init (ivy-prescient-mode 1))
 
+(with-eval-after-load 'ivy-prescient
+  ;; Keep Flyspell's suggestion order (don’t let prescient re-sort it)
+  (dolist (caller '(flyspell-correct-ivy flyspell-correct-wrapper))
+    (setf (alist-get caller ivy-sort-functions-alist) nil)))
+
+
 (use-package company
   :hook (prog-mode . company-mode)
   :bind (:map company-active-map
@@ -347,6 +353,23 @@
 (use-package company-prescient
   :after company
   :init (company-prescient-mode 1))
+
+;; Flyspell popup correction menu (LSP-ish)
+(use-package flyspell
+  :ensure nil
+  :hook ((text-mode . flyspell-mode)
+         (prog-mode . flyspell-prog-mode)))
+
+(with-eval-after-load 'flyspell
+  ;; Remove all default Flyspell keybindings
+  (setcdr flyspell-mode-map nil))
+
+(use-package flyspell-correct
+  :after flyspell
+  :bind (:map flyspell-mode-map
+              ("C-c $" . flyspell-correct-wrapper)
+              ("C-c 4" . flyspell-correct-wrapper)
+	      ))
 
 (use-package project
   :ensure nil            ;; built-in
