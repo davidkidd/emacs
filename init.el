@@ -2,6 +2,11 @@
 ;;; Commentary:
 ;;; Code:
 
+;; Disable UI chrome immediately
+(dolist (mode '(scroll-bar-mode tool-bar-mode menu-bar-mode))
+  (when (fboundp mode)
+    (funcall mode -1)))
+
 ;; Basic setup
 (require 'package)
 
@@ -65,32 +70,39 @@
 ;; Theme loading assumes `novarange-theme` is available in `custom-dir`
 ;; or another directory on `custom-theme-load-path`.
 
-(declare-function solaire-mode-swap-bg "solaire-mode");; forward dec
-(use-package solaire-mode
-  :init
-  ;; When themes change, keep solaire in sync
-  (add-hook 'after-load-theme-hook #'solaire-mode-swap-bg)
-  :config
-  (solaire-global-mode +1))
-
-;; Load theme after solaire is ready to react
+;; Load theme
 (load-theme 'novarange t)
 
-;; Disable UI chrome
-(dolist (mode '(scroll-bar-mode tool-bar-mode menu-bar-mode))
-  (when (fboundp mode)
-    (funcall mode -1)))
+;; After the theme is set, *then* run solaire.
+(use-package solaire-mode
+  :config
+  (solaire-global-mode +1))
 
 ;; Default cursor
 (setq-default cursor-type 'bar)
 
 ;; Set font if available
-(let ((desired-font "FiraCode Nerd Font")
-      (font-size 100)) ;; height, in 1/10pt
-  (when (find-font (font-spec :name desired-font))
-    (add-to-list 'default-frame-alist
-                 `(font . ,(format "%s-%d" desired-font (/ font-size 10))))
-    (set-face-attribute 'default nil :font desired-font :height font-size)))
+(defun my/font-setter (desired-fonts)
+  "Attempt to find and set the first font from DESIRED-FONTS."
+  (let* ((font-size 100)
+         (found-font
+          (seq-find
+           (lambda (font-name)
+             (find-font (font-spec :name font-name)))
+           desired-fonts))
+         (found-font-string
+          (and found-font
+               (format "%s-%d" found-font (/ font-size 10)))))
+    (if found-font
+        (progn
+          (message "Found desired font: %s" found-font-string)
+          ;; Ensure we actually replace any prior font setting.
+          (setq default-frame-alist (assq-delete-all 'font default-frame-alist))
+          (add-to-list 'default-frame-alist `(font . ,found-font-string))
+          (set-face-attribute 'default nil :font found-font :height font-size))
+      (message "Desired font(s) not found"))))
+
+(my/font-setter '("Ioskeley Mono" "FiraCode Nerd Font"))
 
 ;;; Server
 
@@ -153,7 +165,7 @@
 (setq-default fill-column 100)
 (set-face-attribute 'fill-column-indicator nil
                     :foreground "#202020"
-                    :background nil)
+                    :background 'unspecified)
 
 ;; Mode-line cleanups
 (line-number-mode 0)
