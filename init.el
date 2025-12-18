@@ -295,6 +295,13 @@
   :bind (("C-S-c C-S-c" . mc/edit-lines)
          ("M-S-SPC"      . mc/mark-all-dwim)))
 
+;; Expand
+(use-package expand-region
+  :ensure t
+  :bind (("C-;"   . er/expand-region)
+         ("C-M-;" . er/contract-region)))
+
+
 ;; Avy navigation
 (use-package avy
   :bind (("C-'"   . avy-goto-char)
