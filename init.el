@@ -233,12 +233,21 @@
         (newline)
         (insert line)))))
 
+(defun my/mark-defun ()
+  "MARK-DEFUN alternative that corresponds to END-OF-DEFUN and BEGINNING-OF-DEFUN."
+  (interactive)
+  (end-of-defun)
+  (push-mark (point) t t)
+  (beginning-of-defun)
+)
+
 ;;; Keybinds and basic use
 
 ;; Core bindings that conceptually belong to `emacs` itself
 (use-package emacs
   :bind (("C-c C-a" . mark-whole-buffer)
          ("C-c a"   . mark-whole-buffer)
+	 ("C-M-h"   . my/mark-defun)
          ("M-0"     . fixup-whitespace)
          ("C->"     . scroll-up)
          ("C-<"     . scroll-down)
