@@ -398,11 +398,12 @@
                 "init-dired.el"
                 "init-lsp.el"
                 "init-tasks.el"
+		"init-dice.el"
+		"init-media.el"
                 "init-posframe.el"
                 ))
   (let ((path (expand-file-name file user-emacs-directory)))
     (when (file-exists-p path)
       (load-file path))))
-
 
 ;;; init.el ends here
