@@ -262,10 +262,11 @@
 ;; Make some keys globally dominant
 (use-package bind-key
   :config
-  (bind-key* "C-\\" #'counsel-M-x)
-  (bind-key* "C-]"  #'project-switch-to-buffer)
-  (bind-key* "C-."  #'forward-word)
-  (bind-key* "C-,"  #'backward-word))
+  (bind-key* "C-\\"  #'counsel-M-x)
+  (bind-key* "C-]"   #'project-switch-to-buffer)
+  (bind-key* "C-."   #'forward-word)
+  (bind-key* "C-,"   #'backward-word)
+  (bind-key* "C-x K" #'kill-buffer-and-window))
 
 ;; Drag lines/regions with M-p / M-n
 (use-package drag-stuff
