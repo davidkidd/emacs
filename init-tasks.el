@@ -52,16 +52,23 @@ If nil, automatic installation is disabled."
   (require 'task-find)
   (message "task-find: loaded installed package"))
 
+(require 'subr-x) ;; string-trim, string-empty-p
+
+(defun task-find--normalize-url (s)
+  (when (stringp s)
+    (replace-regexp-in-string "/+$" "" (string-trim s))))
+
 (defun task-find--install-from-github ()
   "Install task-find from GitHub using package-vc (Emacs 29+)."
   (unless (fboundp 'package-vc-install)
     (error "package-vc-install not available (requires Emacs 29+)"))
-  (unless (and (stringp task-find-github-url)
-               (not (string-empty-p task-find-github-url)))
-    (error "task-find-github-url is not set"))
-  (package-vc-install task-find-github-url))
+  (let ((url (task-find--normalize-url task-find-github-url)))
+    (unless (and (stringp url) (not (string-empty-p url)))
+      (error "task-find-github-url is not set"))
+    ;; IMPORTANT: provide the package name explicitly
+    (package-vc-install `(task-find :url ,url))))
 
-;; decide what to do 
+;; decide what to do
 
 (cond
  ;; 1) Prefer local dev, if configured and present
@@ -79,11 +86,10 @@ If nil, automatic installation is disabled."
  ;; 3) Otherwise, only *ask to download* if we actually have a URL
  ((and (stringp task-find-github-url)
        (not (string-empty-p (string-trim task-find-github-url))))
-  (when (yes-or-no-p (format "task-find not found. Install from %s ? " task-find-github-url))
-    ;; call your install function here
-    (ensure-vc-package 'task-find task-find-github-url)
-    (require 'task-find)
-    (message "task-find: installed and loaded from GitHub")))
+(when (yes-or-no-p (format "task-find not found. Install from %s ? " task-find-github-url))
+  (task-find--install-from-github)
+  (require 'task-find)
+  (message "task-find: installed and loaded from GitHub")))
 
  ;; 4) Otherwise: nothing available, don’t prompt, just warn
  (t
