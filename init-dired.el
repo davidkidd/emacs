@@ -27,6 +27,9 @@
 
 ;;;; Sidebar (I rarely use this, may just remove it)
 
+;; Prefer external ls (GNU ls) when available
+(setq ls-lisp-use-insert-directory-program t)
+
 (use-package dired-sidebar
   :ensure t
   :bind (("C-c d b" . dired-sidebar-toggle-sidebar))
