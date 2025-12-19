@@ -287,7 +287,7 @@
 
 ;; Ace window
 (use-package ace-window
-  :bind (("M-o" .ace-window)
+  :bind (("M-o" . ace-window)
          ("M-O" . ace-swap-window)))
 
 ;; Multiple cursors
