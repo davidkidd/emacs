@@ -2,7 +2,7 @@
 ;;; Commentary:
 ;;; Code:
 
-;; Disable UI chrome immediately
+;; Disable UI chrome immediately on launch
 (dolist (mode '(scroll-bar-mode tool-bar-mode menu-bar-mode))
   (when (fboundp mode)
     (funcall mode -1)))
@@ -287,12 +287,13 @@
 
 ;; Ace window
 (use-package ace-window
-  :bind (("M-o" . ace-window)
+  :bind (("M-o" .ace-window)
          ("M-O" . ace-swap-window)))
 
 ;; Multiple cursors
 (use-package multiple-cursors
   :bind (("C-S-c C-S-c" . mc/edit-lines)
+	 ("C-M-]" . mc/edit-lines)
          ("M-S-SPC"      . mc/mark-all-dwim)))
 
 ;; Expand
@@ -354,7 +355,7 @@
   :after company
   :init (company-prescient-mode 1))
 
-;; Flyspell popup correction menu (LSP-ish)
+;; Flyspell popup correction menu
 (use-package flyspell
   :ensure nil
   :hook ((text-mode . flyspell-mode)
@@ -387,23 +388,32 @@
 
 (use-package magit)
 
-(use-package proced-narrow
-  :after proced
-  :bind (:map proced-mode-map
-              ("/" . proced-narrow)))
-
 ;;; Load my other init files
+(defgroup my-init nil
+  "Personal init file loading."
+  :group 'initialization)
 
-(dolist (file '("init-zen.el"
-                "init-dired.el"
-                "init-lsp.el"
-                "init-tasks.el"
-		"init-dice.el"
-		"init-media.el"
-                "init-posframe.el"
-                ))
-  (let ((path (expand-file-name file user-emacs-directory)))
-    (when (file-exists-p path)
-      (load-file path))))
+
+(defcustom my/init-files
+  nil
+  ;; eg
+  ;; '(("init-zen.el" t)
+  ;;   ("init-dired.el" t))
+  ;; second bool enabled/disables
+  ;; 
+  "List of init files to load."
+  :type '(repeat (list file boolean))
+  :group 'my-init)
+
+(dolist (entry my/init-files)
+  (let ((filename (car entry))
+        (enabled  (cadr entry)))
+    (if enabled
+        (progn
+          (let ((path (expand-file-name filename user-emacs-directory)))
+            (if (file-exists-p path)
+                (progn (load-file path))
+              (message "External init file not found: %s" filename))))
+      (message "Skipping external init file: %s" filename))))
 
 ;;; init.el ends here
