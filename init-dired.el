@@ -3,9 +3,11 @@
 ;; - vi-style navigation (h/l) in Dired and dired-sidebar
 ;; - helpers: copy full path, two-pane “MC-style” browsing
 ;; - detached file execution (survives Emacs exit)
-;; - fd virtual Dired + fd → rg search into a grep-mode buffer
+;; - fd-dired
 
-(require 'find-dired) ;; reuse its filter/sentinel & ls switch logic
+;;; Code:
+
+(require 'find-dired)
 
 ;;;; Setup
 
@@ -25,17 +27,8 @@
   (define-key dired-mode-map (kbd "h") #'dired-up-directory)
   (define-key dired-mode-map (kbd "l") #'dired-find-file))
 
-;;;; Sidebar (I rarely use this, may just remove it)
-
 ;; Prefer external ls (GNU ls) when available
 (setq ls-lisp-use-insert-directory-program t)
-
-(use-package dired-sidebar
-  :ensure t
-  :bind (("C-c d b" . dired-sidebar-toggle-sidebar))
-  :config
-  (define-key dired-sidebar-mode-map (kbd "h") #'dired-sidebar-up-directory)
-  (define-key dired-sidebar-mode-map (kbd "l") #'dired-sidebar-find-file))
 
 ;;;; Add-ons
 
@@ -148,130 +141,13 @@ Prefers `setsid -f`, falls back to `nohup`, otherwise starts normally."
 (with-eval-after-load 'dired
   (define-key dired-mode-map (kbd "C-c x") #'dired-execute-file))
 
-;;;; fd (fast) — streamed like find-dired, but using fd
+;; fd 
+(use-package fd-dired
+  :init
+  (setq fd-dired-program
+        (or (executable-find "fd")
+            (executable-find "fdfind"))))
 
-(defun dired--xargs-supports--r-p ()
-  "Return non-nil if the system `xargs` supports the `-r` flag (GNU)."
-  (let ((xargs (executable-find "xargs")))
-    (when (not xargs)
-      (user-error "`xargs` not found in PATH"))
-    (with-temp-buffer
-      (let ((status (call-process xargs nil t nil "--help")))
-        (and (numberp status)
-             (= status 0)
-             (save-excursion
-               (goto-char (point-min))
-               (search-forward "-r" nil t)))))))
-(defun dired-fd (args)
-  "Run `fd` (or `fdfind`) with ARGS and display results as a real Dired buffer.
-Search root = current Dired dir if present, else `default-directory`.
-Implementation streams:
-  fd --absolute-path -0 -L ... | xargs -0 ls -ld ...
-and reuses `find-dired`'s parser for speed on large trees.
-
-Notes:
-- We *quote* each fd argument to prevent shell globbing (e.g. '*.txt').
-- We follow symlinks by default (-L); override per-call via --no-follow."
-  (interactive "sfd args: ")
-  (let* ((root (or (and (derived-mode-p 'dired-mode)
-                        (dired-current-directory))
-                   default-directory))
-         (dir  (file-name-as-directory (expand-file-name root)))
-         (fd-prog (or (executable-find "fd")
-                      (executable-find "fdfind")
-                      (user-error "Neither `fd` nor `fdfind` found in PATH")))
-         (xargs-prog (or (executable-find "xargs")
-                         (user-error "`xargs` not found in PATH")))
-         ;; GNU xargs -r?
-         (xargs-has-r
-          (with-temp-buffer
-            (let ((st (call-process xargs-prog nil t nil "--help")))
-              (and (numberp st)
-                   (= st 0)
-                   (save-excursion (goto-char (point-min))
-                                   (search-forward "-r" nil t))))))
-         ;; ls switches that `find-dired` expects for parseable listings
-         (ls-switches (or (cdr find-ls-option) "-ld"))
-         (ls-cmd (mapconcat #'shell-quote-argument
-                            (cons "ls" (split-string ls-switches " +" t)) " "))
-         ;; Build fd argv and quote to defeat shell globbing
-         (fd-argv (append '("--absolute-path" "-0" "--color" "never" "-L")
-                          (split-string-and-unquote args)))
-         (fd-cmd  (mapconcat #'shell-quote-argument
-                             (cons fd-prog fd-argv) " "))
-         ;; Full shell pipeline; CWD = DIR so fd patterns behave
-         (cmd (mapconcat #'identity
-                         (delq nil
-                               (list fd-cmd
-                                     "|"
-                                     "xargs" "-0" (when xargs-has-r "-r")
-                                     ls-cmd
-                                     "2>/dev/null"))
-                         " "))
-         (buf (get-buffer-create
-               (format "*fd: %s @ %s*" args (abbreviate-file-name dir)))))
-    (with-current-buffer buf
-      (let ((inhibit-read-only t))
-        (setq default-directory dir)
-        (erase-buffer)
-        (insert "  " dir ":\n")
-        (unless (derived-mode-p 'dired-mode)
-          (dired-mode))
-        (setq dired-actual-switches ls-switches)
-        (setq buffer-read-only t))
-      ;; Start process and reuse find-dired’s machinery.
-      (let ((inhibit-read-only t)
-            (proc (start-process-shell-command "dired-fd" buf cmd)))
-        (setq mode-line-process '(":%s fd"))
-        (set-process-filter   proc #'find-dired-filter)
-        (set-process-sentinel proc #'find-dired-sentinel)
-        ;; Re-run on `g`
-        (setq-local find-dired-find-program "fd")
-        (setq-local find-dired-find-options (concat "--absolute-path -0 -L " args))
-        (setq-local revert-buffer-function
-                    (lambda (&rest _)
-                      (interactive)
-                      (dired-fd args)))))
-    (pop-to-buffer buf)))
-
-;;;; fd → rg into grep-mode. Requires both fd and rg.
-
-(defun dired-fd-rg (fd-args rg-pattern rg-extra)
-  "Pipe `fd` (or `fdfind`) into ripgrep and display results with `grep-mode`.
-Prompts:
-  - fd args: flags/patterns passed to fd
-  - rg pattern: the search term/pattern for ripgrep
-  - rg extra flags (optional): extra flags for ripgrep"
-  (interactive
-   (list (read-string "fd args: ")
-         (read-string "rg pattern: " (thing-at-point 'symbol t))
-         (read-string "rg extra flags (optional): ")))
-  (let* ((root (or (and (derived-mode-p 'dired-mode)
-                        (dired-current-directory))
-                   default-directory))
-         (fd-prog (or (executable-find "fd")
-                      (executable-find "fdfind")
-                      (user-error "Neither `fd` nor `fdfind` found in PATH")))
-         (rg-prog (or (executable-find "rg")
-                      (user-error "`rg` (ripgrep) not found in PATH")))
-         (xargs-r (and (dired--xargs-supports--r-p) "-r"))
-         (fd-argv (append (list "-HI" "-0" "--type" "f" "--color" "never" "-L")
-                          (split-string-and-unquote fd-args)))
-	 (rg-argv (append '("--no-heading" "--color" "never" "--line-number" "--column" "--vimgrep" "--smart-case")
-                          (unless (string-empty-p rg-extra)
-                            (split-string-and-unquote rg-extra))
-                          (list rg-pattern)))
-         (cmd (mapconcat #'identity
-                         (delq nil
-                               (list (shell-quote-argument fd-prog)
-                                     (mapconcat #'shell-quote-argument fd-argv " ")
-                                     "|"
-                                     "xargs" "-0" xargs-r
-                                     (shell-quote-argument rg-prog)
-                                     (mapconcat #'shell-quote-argument rg-argv " ")))
-                         " ")))
-    (let ((default-directory root))
-      (compilation-start cmd 'grep-mode (lambda (_) "*fd+rg*")))))
 
 ;;;; Jump to containing dir (also works from virtual Dired).
 ;;; Very useful when dealing doing a file search, finding the file, but instead of opening it, you just want the directory it's in.
