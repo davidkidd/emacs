@@ -37,6 +37,44 @@
       (funcall mode -1))))
 
 ;; ---------------------------------------------------------------------
+;; Transient: launcher menu
+;; ---------------------------------------------------------------------
+
+(my/safe-require 'transient)
+
+;;(my/safe-require 'cl-generic)  ;; belt-and-braces
+;;(my/safe-require 'transient)
+
+
+(transient-define-prefix my/lean-menu ()
+  "Lean launcher."
+  ;; Row 1: three columns
+  [["Open"
+    ("f" "Open file"      find-file)
+    ("d" "Open directory" dired)
+    ("p" "Open project"   project-switch-project)
+    ("r" "Open recent or buffer" my/lean-switch-buffer-or-recent)]
+   ["Window"
+    ("v" "Split vertical"        split-window-right)
+    ("h" "Split horizontal"      split-window-below)
+    ("w" "Cycle windows"         other-window)
+    ("0" "Close window"          delete-window)
+    ("1" "Close other windows"   delete-other-windows)
+    ("k" "Kill buffer"           kill-this-buffer)
+    ("K" "Kill buffer + close"   kill-buffer-and-window)]
+   ["Search"
+    ("s" "Search quick (i-search)" isearch-forward)
+    ("o" "Search results (occur)"  occur)
+    ("g" "Search project"          project-find-regexp)]]
+  ;; Row 2: one column (under column 1)
+  [["Exit"
+    ("q" "Close menu" transient-quit-one)
+    ("Q" "Quit Emacs" save-buffers-kill-terminal)]])
+
+(my/safely "lean transient keybind"
+  (global-set-key (kbd "C-|") #'my/lean-menu))
+
+;; ---------------------------------------------------------------------
 ;; Custom dir + theme load path + custom-file
 ;; ---------------------------------------------------------------------
 
@@ -97,12 +135,7 @@
         ";; Shortcuts
 ;;
 ;; M-x or C-\\   Run command
-;; C-x C-f      Open file
-;; C-c SPC      Buffers / recent files
-;; C-x p p      Select project
-;; C-x d        Browse directory
-;; C-g          Cancel anything
-;; C-x C-c      Quit
+;; C-|          Menu
 ;;
 \n"))
 
