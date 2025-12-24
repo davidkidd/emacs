@@ -39,7 +39,8 @@ This is opinionated and may partially override theme colours.")
 ;;
 ;; M-x or C-\\   Run command
 ;; C-|          Menu
-;;
+;; C-g          Cancel anything
+;; 
 \n"
   "Base text shown in *scratch* for init-lean.")
 
@@ -90,6 +91,21 @@ This is opinionated and may partially override theme colours.")
     )
   "Global keybindings for init-lean.")
 
+;; Some modes will take over incredibly useful keybinds.
+;; Identify the useful keybinds here.
+(defconst my/lean-key-override-blockers
+  '("C-." "C-,")
+  "Keys that should never be overridden by minor modes.")
+
+;; And then list the culprits. The keybind police will use both
+;; lists to ensure the keybinds are not overridden. 
+(defconst my/lean-key-override-culprits
+  '((flyspell . flyspell-mode-map))
+  "Alist of (FEATURE . KEYMAP-SYMBOL) to strip keys from after FEATURE loads.")
+
+;; ---------------------------------------------------------------------
+;; User customisation is over. Here be dragons.
+;; ---------------------------------------------------------------------
 
 ;; ---------------------------------------------------------------------
 ;; Helpers
@@ -131,6 +147,20 @@ This is opinionated and may partially override theme colours.")
   "Open the *Messages* buffer."
   (interactive)
   (pop-to-buffer (messages-buffer)))
+
+(defun my/lean-block-keys-in-keymap (keymap)
+  "Remove `my/lean-key-override-blockers` bindings from KEYMAP."
+  (when (keymapp keymap)
+    (dolist (key my/lean-key-override-blockers)
+      (define-key keymap (kbd key) nil))))
+
+(my/safely "key override blockers"
+  (dolist (pair my/lean-key-override-culprits)
+    (let ((feature (car pair))
+          (map-sym  (cdr pair)))
+      (with-eval-after-load feature
+        (when (boundp map-sym)
+          (my/lean-block-keys-in-keymap (symbol-value map-sym)))))))
 
 ;; ---------------------------------------------------------------------
 ;; Basics (do this early so scratch is stable)
