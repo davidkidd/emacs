@@ -12,9 +12,6 @@
 ;; ---------------------------------------------------------------------
 ;; Optional settings (edit these)
 ;; ---------------------------------------------------------------------
-
-(defconst my/lean-)
-
 (defconst my/lean-custom-dir-relative "custom"
   "Relative dir under `user-emacs-directory` for themes/custom files.
 If nil, custom dir, custom-file, and theme are all disabled.")
