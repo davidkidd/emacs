@@ -82,7 +82,7 @@
 	 `(cursor ((,class (:background ,fg4))))
    `(isearch ((,class (:bold t :foreground ,warning :background ,bg3))))
 ;;    `(mode-line ((,class (:box (:line-width 1 :color nil) :bold t :foreground ,builtin :background ,bg2)))) 
-;;   `(mode-line ((,class ( :bold t :foreground ,fg4 :background ,bg2))))
+;;   `(mode-line ((,class ( :bold t :foreground ,bg5 :background ,fg4))))
    `(mode-line ((,class ( :bold t :foreground ,builtin :background ,bg2))))
    `(mode-line-inactive ((,class (:box (:line-width 1 :color nil :style pressed-button) :foreground ,fg7 :background ,bg1 :weight normal))))
     `(mode-line-buffer-id ((,class (:bold t))))
