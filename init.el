@@ -155,15 +155,6 @@
                     :foreground "#202020"
                     :background 'unspecified)
 
-;; Mode-line cleanups
-(line-number-mode 0)
-
-(use-package minions
-  :config
-  (minions-mode 1)
-  (add-to-list 'minions-prominent-modes 'flycheck-mode)
-  (add-to-list 'minions-prominent-modes 'lsp-mode))
-
 ;;; Line numbers
 
 (require 'color)
