@@ -348,13 +348,7 @@
 
 ;; Flyspell popup correction menu
 (use-package flyspell
-  :ensure nil
-  :hook ((text-mode . flyspell-mode)
-         (prog-mode . flyspell-prog-mode)))
-
-(with-eval-after-load 'flyspell
-  ;; Remove all default Flyspell keybindings
-  (setcdr flyspell-mode-map nil))
+  :ensure nil)
 
 (use-package flyspell-correct
   :after flyspell
