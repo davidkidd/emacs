@@ -1,22 +1,32 @@
 ;;; Terminal setup
-(when (not (display-graphic-p))
-  ;; If TERM looks wrong, force an xterm-like TERM *before* anything else
-  (let ((tname (or (getenv "TERM") "dumb")))
-    (when (or (string= tname "dumb")
-              (not (string-match-p "xterm" tname)))
-      (setenv "TERM" "xterm-256color")))
+(defun my/lean--tty-setup ()
+  "Robust TTY setup for xterm-style terminals (clipboard + mouse)."
+  (unless (display-graphic-p)
+    ;; 1) Force a known-good TERM. Don't try to be clever.
+    (setenv "TERM" "xterm-256color")
 
-  ;; Load terminal key/mouse maps for the (possibly corrected) TERM
-  (tty-run-terminal-initialization (selected-frame) (getenv "TERM"))
+    ;; 2) Tell Emacs up-front which xterm capabilities to assume.
+    ;;    This must happen BEFORE terminal init / xterm setup.
+    (setq xterm-extra-capabilities '(getSelection setSelection modifyOtherKeys))
 
-  ;; Enable proper mouse handling in TTY; disable GUI-only pixel scrolling
-  (require 'xt-mouse)
-  (xterm-mouse-mode 1)
-  (mouse-wheel-mode 1)
-  (setq mouse-wheel-scroll-amount '(3 ((shift) . 6)))
-  (setq xterm-extra-capabilities '(getSelection setSelection modifyOtherKeys))
-  (when (bound-and-true-p pixel-scroll-precision-mode)
-    (pixel-scroll-precision-mode -1)))
+    ;; 3) Ensure terminal init runs with the TERM we just forced.
+    (tty-run-terminal-initialization (selected-frame) (getenv "TERM"))
+
+    ;; 4) Mouse support
+    (require 'xt-mouse)
+    (xterm-mouse-mode 1)
+    (mouse-wheel-mode 1)
+    (setq mouse-wheel-scroll-amount '(3 ((shift) . 6)))
+
+    ;; 5) Disable GUI-only pixel scrolling if it somehow got enabled
+    (when (bound-and-true-p pixel-scroll-precision-mode)
+      (pixel-scroll-precision-mode -1))))
+
+;; Run at the correct lifecycle point for TTY frames:
+(add-hook 'tty-setup-hook #'my/lean--tty-setup)
+
+;; Also run once immediately (covers some startup orders):
+(my/lean--tty-setup)
 
 ;;; Windows
 (when (and (not (display-graphic-p))
