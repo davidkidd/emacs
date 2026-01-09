@@ -55,6 +55,7 @@
 
 ;;; Environment
 
+
 (cond
  ;; Linux / macOS: import shell environment
  ((memq system-type '(gnu/linux darwin))
@@ -232,6 +233,11 @@
   (beginning-of-defun)
 )
 
+(set-face-attribute 'vertical-border nil
+                    :foreground "#444444")
+
+
+
 ;;; Keybinds and basic use
 
 ;; Core bindings that conceptually belong to `emacs` itself
@@ -242,8 +248,8 @@
          ("M-0"     . fixup-whitespace)
          ("C->"     . scroll-up)
          ("C-<"     . scroll-down)
-         ("M-]"     . forward-paragraph)
-         ("M-["     . backward-paragraph)
+         ;;("M-]"     . forward-paragraph)
+         ;;("M-["     . backward-paragraph)
          ("C-c o"   . delete-other-windows)
          ("C-c 0"   . delete-window)
          ("C-c ]"   . next-buffer)
@@ -278,13 +284,12 @@
 
 ;; Ace window
 (use-package ace-window
-  :bind (("M-o" . ace-window)
-         ("M-O" . ace-swap-window)))
+  :bind (("M-o" . ace-window)))
+;;         ("M-O" . ace-swap-window)))
 
 ;; Multiple cursors
 (use-package multiple-cursors
-  :bind (("C-S-c C-S-c" . mc/edit-lines)
-	 ("C-M-]" . mc/edit-lines)
+  :bind (("C-M-]" . mc/edit-lines)
          ("M-S-SPC"      . mc/mark-all-dwim)))
 
 ;; Expand
@@ -292,7 +297,6 @@
   :ensure t
   :bind (("C-;"   . er/expand-region)
          ("C-M-;" . er/contract-region)))
-
 
 ;; Avy navigation
 (use-package avy
