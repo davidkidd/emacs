@@ -175,8 +175,19 @@ pop up below it."
              (window-height . 0.25)
              (dedicated . t)
              (preserve-size . (t . t))
-             (window-parameters . ((no-other-window . t)
-                                   (no-delete-other-windows . t))))))))))
+             (window-parameters . ((no-delete-other-windows . t))))))))))
+
+;; Turning this off for now. Let the playlist hang around when menu is closed
+;; and manually toggle it off in that case.
+;; (defun my/emms-menu--close-playlist-on-exit (&rest _)
+;;   "Close the EMMS playlist window when the transient menu exits."
+;;   (when-let ((buf (get-buffer emms-playlist-buffer-name)))
+;;     (when-let ((win (get-buffer-window buf t)))
+;;       (delete-window win))))
+
+;; (advice-add 'transient--do-quit-one :after #'my/emms-menu--close-playlist-on-exit)
+;; (advice-add 'transient--do-quit-all :after #'my/emms-menu--close-playlist-on-exit)
+
 
 (defun my/emms--playing-p ()
   "Best-effort check whether EMMS thinks it is currently playing."
@@ -235,14 +246,6 @@ Prefer VLC RC (reliable). If VLC isn't reachable yet, start playback via EMMS."
   (my/vlc-rc-send (format "volume %d" n)))
 
 ;; Menu setup
-
-(transient-define-prefix my/emms-menu ()
-  "EMMS quick controls."
-  :transient-suffix 'transient--do-stay
-  (interactive)
-  (my/emms--ensure-playlist-loaded)
-  (transient-setup 'my/emms-menu))
-
 (transient-define-prefix my/emms-menu ()
   "EMMS quick controls."
   :transient-suffix 'transient--do-stay
@@ -251,18 +254,21 @@ Prefer VLC RC (reliable). If VLC isn't reachable yet, start playback via EMMS."
     ("n"   "Next"       emms-next)
     ("p"   "Prev"       emms-previous)]
    ["Playlist"
-    ("l" "Toggle playlist buffer"     my/emms-toggle-playlist)
+    ("l" "Toggle playlist buffer" my/emms-toggle-playlist)
     ("L" "Load last playlist"     my/emms--ensure-playlist-loaded)
-    ("N" "Load playlist…"     my/emms-load-custom-playlist)]
+    ("N" "Load playlist…"         my/emms-load-custom-playlist)]
    ["Volume (VLC RC)"
     ("+" "Up"        my/emms-vlc-volup)
     ("-" "Dn"        my/emms-vlc-voldown)
-    ("v" "Set…"  my/emms-vlc-volume-set)
-    ("m" "Toggle mute"     my/emms-vlc-mute-toggle)]]
+    ("v" "Set…"      my/emms-vlc-volume-set)
+    ("m" "Toggle mute" my/emms-vlc-mute-toggle)]]
   [["Menu"
     ("M" "Toggle modeline info" my/emms-toggle-modeline)
-;;    ("c" "Live song" my/emms-vlc-current-song)
-    ("q" "Close" transient-quit-one)]])
+    ("q" "Close" transient-quit-one)]]
+  (interactive)
+  (transient-setup 'my/emms-menu))
+
+
 
 ;; Keybind
 (global-set-key (kbd "C-c m") #'my/emms-menu)
