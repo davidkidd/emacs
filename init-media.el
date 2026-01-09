@@ -155,22 +155,28 @@ Starts off by default."
   (get-buffer emms-playlist-buffer-name))
 
 (defun my/emms-toggle-playlist ()
-  "Toggle visibility of the EMMS playlist buffer."
+  "Toggle the EMMS playlist in a bottom window that doesn't steal your layout.
+
+Uses a normal bottom window (not a side window), so Transient can still
+pop up below it."
   (interactive)
   (let* ((buf (or (my/emms--playlist-buffer)
                   (when (fboundp 'emms-playlist-mode-go)
                     (ignore-errors (emms-playlist-mode-go))
-                    (my/emms--playlist-buffer))))
-         (win (and buf (get-buffer-window buf t))))
-    (cond
-     ((and buf win)
-      ;; Playlist is visible → hide it
-      (delete-window win))
-     (buf
-      ;; Playlist exists but not visible → show it
-      (pop-to-buffer buf))
-     (t
-      (message "No EMMS playlist buffer yet (load a playlist first).")))))
+                    (my/emms--playlist-buffer)))))
+    (if (not (buffer-live-p buf))
+        (message "No EMMS playlist buffer yet (load a playlist first).")
+      (let ((win (get-buffer-window buf t)))
+        (if (window-live-p win)
+            (delete-window win)
+          (display-buffer
+           buf
+           '((display-buffer-at-bottom)
+             (window-height . 0.25)
+             (dedicated . t)
+             (preserve-size . (t . t))
+             (window-parameters . ((no-other-window . t)
+                                   (no-delete-other-windows . t))))))))))
 
 (defun my/emms--playing-p ()
   "Best-effort check whether EMMS thinks it is currently playing."
