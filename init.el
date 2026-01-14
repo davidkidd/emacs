@@ -7,7 +7,6 @@
   (when (fboundp mode)
     (funcall mode -1)))
 
-
 ;; Basic setup
 (require 'package)
 
@@ -329,28 +328,7 @@
 (use-package which-key
   :init (which-key-mode 1))
 
-;; (use-package counsel
-;; ;;  :init (ivy-mode 1)
-;;   :bind (("M-x"     . counsel-M-x)
-;;          ("C-c SPC" . counsel-buffer-or-recentf)
-;;          ("C-c b"   . counsel-switch-buffer)
-;;          ("M-y"     . counsel-yank-pop)))
-
-;; (use-package smex)
-
-;; (global-set-key (kbd "C-s")   #'swiper)
-;; (global-set-key (kbd "C-S-s") #'swiper-thing-at-point)
-
-;; (use-package ivy-prescient
-;;   :init (ivy-prescient-mode 1))
-
-;; (with-eval-after-load 'ivy-prescient
-;;   ;; Keep Flyspell's suggestion order (don’t let prescient re-sort it)
-;;   (dolist (caller '(flyspell-correct-ivy flyspell-correct-wrapper))
-;;     (setf (alist-get caller ivy-sort-functions-alist) nil)))
-
-
-;;; Completion, search, nav (Vertico/Consult)
+;;; Completion, search, nav
 
 (use-package recentf
   :ensure nil
@@ -365,14 +343,9 @@
 (use-package which-key
   :init (which-key-mode 1))
 
-;; Vertico: completion UI in the minibuffer (minimal, doesn't fight Emacs)
-;; (use-package vertico
-;;   :init
-;;   (vertico-mode 1))
-
+;; Just use builtins
 (fido-mode 1)
 (icomplete-vertical-mode 1)
-
 
 ;; Save minibuffer history (recommended with any completion UI)
 (use-package savehist
@@ -388,9 +361,9 @@
         completion-category-overrides '((file (styles basic partial-completion)))))
 
 ;; Helpful annotations in completion lists
-;; (use-package marginalia
-;;   :init
-;;   (marginalia-mode 1))
+(use-package marginalia
+  :init
+  (marginalia-mode 1))
 
 ;; Consult: modern replacements for counsel/swiper
 (use-package consult
@@ -407,20 +380,54 @@
 ;; If you prefer, you can explicitly bind it:
 (global-set-key (kbd "M-x") #'execute-extended-command)
 
+;; Replace company with corfu
+(use-package corfu
+  :ensure t
+  :hook (prog-mode . corfu-mode)
+  :custom
+  ;; Popup behaviour
+  (corfu-auto t)                 ; show popup automatically
+  (corfu-auto-delay 0.05)
+  (corfu-auto-prefix 1)
+  (corfu-cycle t)                ; wrap around at ends
+  (corfu-preselect 'first)
+  
+  ;; Safety / sanity
+  (corfu-quit-no-match 'separator)
+  (corfu-preview-current nil)    ; no inline preview junk
 
-(use-package company
-  :hook (prog-mode . company-mode)
-  :bind (:map company-active-map
-              ("<tab>" . company-complete-selection))
+  :bind
+  (:map corfu-map
+        ;; Accept selection
+        ("TAB"     . corfu-insert)
+        ("<tab>"   . corfu-insert)
+
+        ;; Navigate
+        ("C-n"     . corfu-next)
+        ("C-p"     . corfu-previous)
+        ("<down>"  . corfu-next)
+        ("<up>"    . corfu-previous)
+
+        ;; Abort
+        ("C-g"     . corfu-quit)))
+
+;; for terminal UI
+(use-package corfu-terminal
+  :ensure t
+  :after corfu
   :config
-  (setq company-format-margin-function nil)
-  ;; Strip dabbrev backends
-  (setq company-backends (remove 'company-dabbrev company-backends))
-  (setq company-backends (remove 'company-dabbrev-code company-backends)))
+  (corfu-terminal-mode 1))
 
-(use-package company-prescient
-  :after company
-  :init (company-prescient-mode 1))
+(use-package prescient
+  :ensure t
+  :config
+  (prescient-persist-mode 1))
+
+(use-package corfu-prescient
+  :ensure t
+  :after (corfu prescient)
+  :config
+  (corfu-prescient-mode 1))
 
 ;; Flyspell popup correction menu
 (use-package flyspell

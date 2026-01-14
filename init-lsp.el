@@ -81,16 +81,6 @@
 
 (setq-default c-basic-offset 4)
 
-
-(use-package company
-  :after lsp-mode
-  :hook (prog-mode . company-mode)
-  :bind (:map lsp-mode-map
-              ("<tab>" . company-indent-or-complete-common))
-  :custom
-  (company-minimum-prefix-length 2)
-  (company-idle-delay 0.2))
-
 ;; Customize clangd arguments
 (setq lsp-clients-clangd-args '("--clang-tidy" "--background-index" "--log=verbose"))
 
