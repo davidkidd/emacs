@@ -73,15 +73,16 @@ If files are marked, copy all marked. Otherwise, copy file at point."
 
 ;;;; Midnight Commander style helpers
 
-(defun dired-dual-pane ()
-  "Open a two-pane vertical split, both panes in Dired on the current directory."
+(defun dired-dual-pane (&optional dir)
+  "Open a two-pane vertical split, both panes in Dired on DIR (or current `default-directory`)."
   (interactive)
-  (delete-other-windows)
-  (split-window-right)
-  (open-dired-in-current-directory)
-  (other-window 1)
-  (open-dired-in-current-directory)
-  (other-window 1))
+  (let ((dir (file-name-as-directory (expand-file-name (or dir default-directory)))))
+    (delete-other-windows)
+    (split-window-right)
+    (dired dir)
+    (other-window 1)
+    (dired dir)
+    (other-window 1)))
 
 (global-set-key (kbd "C-c d s") #'dired-dual-pane)
 

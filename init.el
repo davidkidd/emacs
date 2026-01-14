@@ -7,6 +7,7 @@
   (when (fboundp mode)
     (funcall mode -1)))
 
+
 ;; Basic setup
 (require 'package)
 
@@ -106,13 +107,11 @@
 (my/font-setter '("Ioskeley Mono" "FiraCode Nerd Font"))
 
 ;;; Server
-
 (require 'server)
 (unless (server-running-p)
   (server-start))
 
 ;;; General
-
 (defvar quit-restore-window-configuration)
 (setq inhibit-startup-message t
       initial-scratch-message ";; scratch\n\n"
@@ -220,7 +219,8 @@
         (newline)
         (insert text))
     (save-excursion
-      (let ((line (thing-at-point 'line t)))
+      (let* ((line (thing-at-point 'line t))
+             (line (string-remove-suffix "\n" line)))
         (end-of-line)
         (newline)
         (insert line)))))
@@ -231,12 +231,10 @@
   (end-of-defun)
   (push-mark (point) t t)
   (beginning-of-defun)
-)
+  )
 
 (set-face-attribute 'vertical-border nil
                     :foreground "#444444")
-
-
 
 ;;; Keybinds and basic use
 
@@ -244,12 +242,12 @@
 (use-package emacs
   :bind (("C-c C-a" . mark-whole-buffer)
          ("C-c a"   . mark-whole-buffer)
-	 ("C-M-h"   . my/mark-defun)
+         ("C-M-h"   . my/mark-defun)
          ("M-0"     . fixup-whitespace)
          ("C->"     . scroll-up)
          ("C-<"     . scroll-down)
-         ;;("M-]"     . forward-paragraph)
-         ;;("M-["     . backward-paragraph)
+         ("M-o"     . my/other-window-or-ace)
+         ("C-x o"     . my/other-window-or-ace)
          ("C-c o"   . delete-other-windows)
          ("C-c 0"   . delete-window)
          ("C-c ]"   . next-buffer)
@@ -260,7 +258,6 @@
 (use-package bind-key
   :config
   (bind-key* "C-\\"  #'counsel-M-x)
-  (bind-key* "C-]"   #'project-switch-to-buffer)
   (bind-key* "C-."   #'forward-word)
   (bind-key* "C-,"   #'backward-word)
   (bind-key* "C-x K" #'kill-buffer-and-window))
@@ -283,13 +280,19 @@
   (define-key vundo-mode-map (kbd ".") #'vundo-forward))
 
 ;; Ace window
-(use-package ace-window
-  :bind (("M-o" . ace-window)))
-;;         ("M-O" . ace-swap-window)))
+(use-package ace-window)
+
+(defun my/other-window-or-ace ()
+  "Like `other-window`, but use `ace-window` when more than 3 windows exist instead of the default 2."
+  (interactive)
+  (if (> (count-windows) 3)
+      (call-interactively #'ace-window)
+    (other-window 1)))
 
 ;; Multiple cursors
 (use-package multiple-cursors
-  :bind (("C-M-]" . mc/edit-lines)
+  :bind (("C-M-]" . mc/unmark-next-like-this)
+         ("C-]" . mc/mark-next-lines)
          ("M-S-SPC"      . mc/mark-all-dwim)))
 
 ;; Expand
@@ -359,7 +362,7 @@
   :bind (:map flyspell-mode-map
               ("C-c $" . flyspell-correct-wrapper)
               ("C-c 4" . flyspell-correct-wrapper)
-	      ))
+              ))
 
 (use-package project
   :ensure nil            ;; built-in
@@ -376,6 +379,8 @@
   :hook (prog-mode . flycheck-mode))
 
 (use-package magit)
+
+;;; Experiments
 
 ;;; Load my other init files
 (defgroup my-init nil
