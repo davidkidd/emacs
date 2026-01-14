@@ -9,7 +9,6 @@
   :bind (("C-c c d" . lsp-find-definition)
          ("C-c c e" . flycheck-list-errors)
          ("C-c c r" . lsp-find-references)
-	 ("C-c c i" . counsel-imenu)
 	 ("C-c c a" . lsp-execute-code-action)
          ("C-c c l" . lsp-lens-mode))
   

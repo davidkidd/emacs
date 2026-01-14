@@ -75,6 +75,17 @@
 ;; Load theme
 (load-theme 'novarange t)
 
+;; Completions is too colourful for something so common,
+;; so strip the colours so they don't clash with the theme.
+(defun my/lean-apply-opinionated-faces ()
+  "Apply opinionated face tweaks when enabled."
+      (set-face-attribute 'completions-common-part nil
+                          :foreground 'unspecified
+                          :inherit 'default
+                          :weight 'bold))
+
+(my/lean-apply-opinionated-faces)
+
 ;; After the theme is set, *then* run solaire.
 (use-package solaire-mode
   :config
@@ -257,7 +268,7 @@
 ;; Make some keys globally dominant
 (use-package bind-key
   :config
-  (bind-key* "C-\\"  #'counsel-M-x)
+  (bind-key* "C-\\"  #'execute-extended-command)
   (bind-key* "C-."   #'forward-word)
   (bind-key* "C-,"   #'backward-word)
   (bind-key* "C-x K" #'kill-buffer-and-window))
@@ -318,25 +329,83 @@
 (use-package which-key
   :init (which-key-mode 1))
 
-(use-package counsel
-  :init (ivy-mode 1)
-  :bind (("M-x"     . counsel-M-x)
-         ("C-c SPC" . counsel-buffer-or-recentf)
-         ("C-c b"   . counsel-switch-buffer)
-         ("M-y"     . counsel-yank-pop)))
+;; (use-package counsel
+;; ;;  :init (ivy-mode 1)
+;;   :bind (("M-x"     . counsel-M-x)
+;;          ("C-c SPC" . counsel-buffer-or-recentf)
+;;          ("C-c b"   . counsel-switch-buffer)
+;;          ("M-y"     . counsel-yank-pop)))
 
-(use-package smex)
+;; (use-package smex)
 
-(global-set-key (kbd "C-s")   #'swiper)
-(global-set-key (kbd "C-S-s") #'swiper-thing-at-point)
+;; (global-set-key (kbd "C-s")   #'swiper)
+;; (global-set-key (kbd "C-S-s") #'swiper-thing-at-point)
 
-(use-package ivy-prescient
-  :init (ivy-prescient-mode 1))
+;; (use-package ivy-prescient
+;;   :init (ivy-prescient-mode 1))
 
-(with-eval-after-load 'ivy-prescient
-  ;; Keep Flyspell's suggestion order (don’t let prescient re-sort it)
-  (dolist (caller '(flyspell-correct-ivy flyspell-correct-wrapper))
-    (setf (alist-get caller ivy-sort-functions-alist) nil)))
+;; (with-eval-after-load 'ivy-prescient
+;;   ;; Keep Flyspell's suggestion order (don’t let prescient re-sort it)
+;;   (dolist (caller '(flyspell-correct-ivy flyspell-correct-wrapper))
+;;     (setf (alist-get caller ivy-sort-functions-alist) nil)))
+
+
+;;; Completion, search, nav (Vertico/Consult)
+
+(use-package recentf
+  :ensure nil
+  :init
+  (recentf-mode 1)
+  :config
+  (setq recentf-max-saved-items 200
+        recentf-max-menu-items 50))
+
+
+;; Keep which-key if you like it (it’s fine)
+(use-package which-key
+  :init (which-key-mode 1))
+
+;; Vertico: completion UI in the minibuffer (minimal, doesn't fight Emacs)
+;; (use-package vertico
+;;   :init
+;;   (vertico-mode 1))
+
+(fido-mode 1)
+(icomplete-vertical-mode 1)
+
+
+;; Save minibuffer history (recommended with any completion UI)
+(use-package savehist
+  :ensure nil
+  :init
+  (savehist-mode 1))
+
+;; Better matching: type space-separated patterns in any order
+(use-package orderless
+  :init
+  (setq completion-styles '(orderless basic)
+        completion-category-defaults nil
+        completion-category-overrides '((file (styles basic partial-completion)))))
+
+;; Helpful annotations in completion lists
+;; (use-package marginalia
+;;   :init
+;;   (marginalia-mode 1))
+
+;; Consult: modern replacements for counsel/swiper
+(use-package consult
+  :bind (("C-s"     . consult-line)
+         ("C-S-s"   . consult-line-multi)
+         ("C-c b"   . consult-buffer)
+         ("C-c SPC" . consult-buffer)
+         ("M-y"     . consult-yank-pop)
+         ;; Optional extras that are usually handy:
+         ("C-c r"   . consult-ripgrep)
+         ("C-c i"   . consult-imenu)))
+
+;; Make M-x use normal completion (Vertico will enhance it automatically)
+;; If you prefer, you can explicitly bind it:
+(global-set-key (kbd "M-x") #'execute-extended-command)
 
 
 (use-package company
