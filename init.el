@@ -446,7 +446,6 @@
   ("C-c p" . project-prefix-map))
 
 ;;; Tools
-
 (use-package rg
   :config
   (setq xref-search-program 'ripgrep))
@@ -456,34 +455,53 @@
 
 (use-package magit)
 
-;;; Experiments
+;;; Init config
 
-;;; Load my other init files
 (defgroup my-init nil
   "Personal init file loading."
   :group 'initialization)
 
+(defcustom my/load-extra-init t
+  "Set to allow or block extra init loading.  Init files must first be configured in init-files."
+  :type 'boolean
+  :group 'my-init
+  :initialize #'custom-initialize-default)
 
-(defcustom my/init-files
-  nil
-  ;; eg
-  ;; '(("init-zen.el" t)
-  ;;   ("init-dired.el" t))
-  ;; second bool enabled/disables
-  ;; 
+(defcustom my/init-files nil
   "List of init files to load."
   :type '(repeat (list file boolean))
-  :group 'my-init)
+  :group 'my-init
+  :initialize #'custom-initialize-default)
 
-(dolist (entry my/init-files)
-  (let ((filename (car entry))
-        (enabled  (cadr entry)))
-    (if enabled
-        (progn
+(defvar my/block-extra-init nil
+  "When non-nil, skip loading extra init files for this session only.")
+
+;; Example of setting this when launching from the commandline:
+;; emacs -q --eval "(setq my/block-extra-init t)" -l ~/.emacs.d/init.el
+;;
+;; Or, to set a shortcut entry:
+;; [Desktop Entry]
+;; Type=Application
+;; Name=Emacs (minimal)
+;; Comment=Emacs without extra init files
+;; Exec=emacs -q --eval "(setq my/block-extra-init t)" -l ~/.emacs.d/init.el
+;; Icon=emacs
+;; Terminal=false
+;; Categories=Development;TextEditor;
+;; StartupWMClass=Emacs
+
+(cond
+ ((bound-and-true-p my/block-extra-init)
+  (message "Extra init loading disabled for this session"))
+ ((bound-and-true-p my/load-extra-init)
+  (dolist (entry my/init-files)
+    (let ((filename (car entry))
+          (enabled  (cadr entry)))
+      (if enabled
           (let ((path (expand-file-name filename user-emacs-directory)))
             (if (file-exists-p path)
-                (progn (load-file path))
-              (message "External init file not found: %s" filename))))
-      (message "Skipping external init file: %s" filename))))
+                (load-file path)
+              (message "External init file not found: %s" filename)))
+        (message "Skipping external init file: %s" filename))))))
 
 ;;; init.el ends here
