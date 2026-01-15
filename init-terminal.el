@@ -1,4 +1,29 @@
 ;;; Terminal setup
+
+;; ----- GHOSTTY CONFIG -----
+;; # Basic ghostty config for our terminal emacs
+;; # /home/d/.config/ghostty/config
+
+;; # Set a black background theme
+;; theme = Builtin Tango Dark
+
+;; # Nuke all keybinds
+;; keybind = clear
+
+;; # Always allow copy/paste
+;; clipboard-paste-protection = false
+;; clipboard-paste-bracketed-safe = true
+;; clipboard-read = allow
+;; clipboard-write = allow
+
+;; # Block copy/paste notifications
+;; app-notifications = no-clipboard-copy
+
+;; # Make Ctrl-Backspace delete word
+;; keybind = ctrl+backspace=text:\x1b\x7f
+
+;; ----- END GHOSTTY CONFIG -----
+
 (defun my/lean--tty-setup ()
   "Robust TTY setup for xterm-style terminals (clipboard + mouse)."
   (unless (display-graphic-p)
