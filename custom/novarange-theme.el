@@ -2,8 +2,8 @@
 
 ;; Copyright (C) 2024 , 
 
-;; Author: 
-;; Version: 0.1
+;; Author: David Kidd
+;; Version: 0.1'
 ;; Package-Requires: ((emacs "24.1"))
 ;; Created with ThemeCreator, https://github.com/mswift42/themecreator.
 
@@ -23,7 +23,7 @@
 ;; This file is not part of Emacs.
 
 ;;; Commentary:
-;;; novarange theme created by  in 2024
+;;; novarange theme created by David Kidd in 2024
 
 ;;; Code:
 
@@ -75,7 +75,7 @@
    ;; `(region ((,class (:background ,fg1 :foreground ,bg1))))
    `(region ((,class (:background ,selection))))
    `(highlight ((,class (:foreground ,fg3 :background ,bg3))))
-	 `(hl-line ((,class (:background  ,bg2))))
+	 `(hl-line ((,class (:background  "#202020"))))
 	 ;; `(fringe ((,class (:background "#000000" :foreground ,fg4))))
 	 `(fringe ((,class (:background ,bg1 :foreground ,fg4))))
 
@@ -88,7 +88,15 @@
    `(mode-line-inactive ((,class (:box (:line-width 1 :color nil :style pressed-button) :foreground ,fg7 :background ,bg1 :weight normal))))
    `(mode-line-buffer-id ((,class (:bold t))))
    `(consult-preview ((,class (:background ,selection))))
-   '(corfu-current ((t (:background "#303030"))))
+   `(completions-common-part ((t (:weight bold))))
+   `(completions-first-difference ((t (:weight bold))))
+   `(orderless-match-face-0 ((,class (:weight bold :foreground unspecified :background unspecified))))
+`(orderless-match-face-1 ((,class (:weight bold :foreground unspecified :background unspecified))))
+`(orderless-match-face-2 ((,class (:weight bold :foreground unspecified :background unspecified))))
+`(orderless-match-face-3 ((,class (:weight bold :foreground unspecified :background unspecified))))
+
+   `(consult-highlight-match ((t (:weight bold))))
+   `(corfu-current ((t (:background "#303030"))))
    ;; `(mode-line-buffer-id ((,class (:bold t :foreground ,func :background ,unspec))))
    ;; 	 `(mode-line-highlight ((,class (:foreground ,keyword :box nil :weight bold))))
    `(mode-line-emphasis ((,class (:foreground ,fg1))))

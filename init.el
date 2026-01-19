@@ -1,224 +1,286 @@
-;;; init.el --- Personal Emacs init -*- lexical-binding: t; -*-
+;;; init.el --- Fast, built-in only init (Emacs 30+) -*- lexical-binding: t; -*-
 ;;; Commentary:
+;; A fast, lean alternative init using only built-ins.
 ;;; Code:
 
-;; Disable UI chrome immediately on launch
-(dolist (mode '(scroll-bar-mode tool-bar-mode menu-bar-mode))
-  (when (fboundp mode)
-    (funcall mode -1)))
+;; ---------------------------------------------------------------------
+;; Options:
+;; - Reasonable, opinionated defaults
+;; - User-specific overrides are best placed in the custom file so this
+;;   init can be updated from the repository with minimal merge conflicts
+;;   (e.g. (setq my/font-height-override 132))
+;; ---------------------------------------------------------------------
 
-;; Basic setup
-(require 'package)
+(defvar my/custom-dir-relative "custom"
+  "Relative directory under `user-emacs-directory`.
 
-;; TLS tweak
-(defvar gnutls-algorithm-priority)
-(setq gnutls-algorithm-priority "NORMAL:-VERS-TLS1.3")
+If non-nil and the directory exists:
+- it is used to locate the custom file specified by
+  `my/custom-file-name`
+- it is added to `custom-theme-load-path`, allowing themes placed
+  there to be loaded via `my/theme`
 
-(setq package-archives
-      '(("melpa"  . "https://melpa.org/packages/")
-        ("org"    . "https://orgmode.org/elpa/")
-        ("nongnu" . "https://elpa.nongnu.org/nongnu/")
-        ("gnu"    . "https://elpa.gnu.org/packages/")))
+If nil, custom dir and custom-file handling are disabled.")
 
-(package-initialize)
+(defvar my/custom-file-name "custom.el"
+  "Filename within the custom directory to use as `custom-file`.
 
-(unless (package-installed-p 'use-package)
-  (package-refresh-contents)
-  (package-install 'use-package))
+If nil, custom-file loading is disabled (the custom directory and
+theme loading may still be used).")
 
-;; For custom package downloads
-(defun ensure-vc-package (name repo)
-  "Ensure NAME is installed from Git REPO."
-  (unless (package-installed-p name)
-    (package-vc-install repo)))
+(defvar my/theme 'tango-dark
+  "Theme symbol to load via `load-theme`.
 
-(require 'use-package)
-(setq use-package-always-ensure t)
+The theme may be built-in or located in any directory listed in
+`custom-theme-load-path`. If nil, theme loading is disabled.")
 
-;;; Custom config
-(defconst custom-dir (expand-file-name "custom" user-emacs-directory)
-  "Full path to the custom configuration directory.")
+(defvar my/fonts
+  '("DejaVu Sans Mono"
+    "Liberation Mono"
+    "Consolas"
+    "Menlo"
+    "Monaco"
+    "FiraCode Nerd Font"
+    "Fira Code"
+    "JetBrains Mono")
+  "Fonts to try in order. First available is used.")
 
-(unless (file-directory-p custom-dir)
-  (make-directory custom-dir t))
+(defvar my/font-height-override nil
+  "Optional global font height override (1/10 pt).
+If nil, the implicit default of 100 is used.")
 
-(add-to-list 'load-path custom-dir)
-(add-to-list 'custom-theme-load-path custom-dir)
+(defvar my/strip-some-colours t
+  "If non-nil, override certain faces to avoid clashing with themes.
+This is opinionated and may partially override theme colours.")
 
-(setq custom-file (expand-file-name "custom.el" custom-dir))
+(defvar my/scratch-base
+";; scratch"
+  "Base text shown in *scratch* for init.")
 
-;;; Load custom file
+(defvar my/keybinds
+  '(
+    ;; Core
+    ("C-\\"     . execute-extended-command)
+    ("C-c C-a"  . mark-whole-buffer)
+    ("C-c a"    . mark-whole-buffer)
+    ("C-M-l"    . duplicate-dwim)
+    ("C-M-h"    . my/mark-defun)
 
-(when (file-exists-p custom-file)
-  (load custom-file))
+    ("M-0"      . fixup-whitespace)
 
+    ("M-o"      . other-window)
+    ("C-c o"    . delete-other-windows)
+    ("C-c 0"    . delete-window)
 
-;;; Environment
+    ("C-c ]"    . next-buffer)
+    ("C-c ["    . previous-buffer)
+    ("C-c SPC"  . my/switch-buffer-or-recent)
+    ("C-c b"    . switch-to-buffer)
 
+    ("C-c w"    . copy-current-line)
 
-(cond
- ;; Linux / macOS: import shell environment
- ((memq system-type '(gnu/linux darwin))
-  (use-package exec-path-from-shell
-    :config
-    (exec-path-from-shell-initialize)))
- ;; Windows: do nothing here
- ;; (PATH is taken from the parent process)
- )
+    ;; Word motion
+    ("C-."      . forward-word)
+    ("C-,"      . backward-word)
 
-;; UI, theme etc
+    ;; Kill buffer+window
+    ("C-x K"    . kill-buffer-and-window)
 
-;; Theme loading assumes `novarange-theme` is available in `custom-dir`
-;; or another directory on `custom-theme-load-path`.
+    ;; Menu
+    ("C-|"      . my/menu)
+    )
+  "Global keybindings for init.")
 
-;; Load theme
-(load-theme 'novarange t)
+(defvar my/key-override-blockers
+  '("C-." "C-,")
+  "Keys that should never be overridden by minor modes.")
 
-;; Completions is too colourful for something so common,
-;; so strip the colours so they don't clash with the theme.
-(defun my/lean-apply-opinionated-faces ()
-  "Apply opinionated face tweaks when enabled."
-      (set-face-attribute 'completions-common-part nil
-                          :foreground 'unspecified
-                          :inherit 'default
-                          :weight 'bold))
+(defvar my/key-override-culprits
+  '((flyspell . flyspell-mode-map))
+  "Alist of (FEATURE . KEYMAP-SYMBOL) to strip keys from after FEATURE loads.")
 
-(my/lean-apply-opinionated-faces)
+;; ---------------------------------------------------------------------
+;; User customisation is over. Here be dragons.
+;; ---------------------------------------------------------------------
 
-;; After the theme is set, *then* run solaire.
-(use-package solaire-mode
-  :config
-  (solaire-global-mode +1))
+(require 'subr-x)
 
-;; Default cursor
-(setq-default cursor-type 'bar)
-
-;; Set font if available
-(defun my/font-setter (desired-fonts)
-  "Attempt to find and set the first font from DESIRED-FONTS."
-  (let* ((font-size 100)
-         (found-font
-          (seq-find
-           (lambda (font-name)
-             (find-font (font-spec :name font-name)))
-           desired-fonts))
-         (found-font-string
-          (and found-font
-               (format "%s-%d" found-font (/ font-size 10)))))
-    (if found-font
-        (progn
-          (message "Found desired font: %s" found-font-string)
-          ;; Ensure we actually replace any prior font setting.
-          (setq default-frame-alist (assq-delete-all 'font default-frame-alist))
-          (add-to-list 'default-frame-alist `(font . ,found-font-string))
-          (set-face-attribute 'default nil :font found-font :height font-size))
-      (message "Desired font(s) not found"))))
-
-(my/font-setter '("Ioskeley Mono" "FiraCode Nerd Font"))
+;; Linux / macOS: import shell environment (if the package exists)
+(when (memq system-type '(gnu/linux darwin))
+  (when (require 'exec-path-from-shell nil 'noerror)
+    ;; Only call it if it’s actually defined
+    (when (fboundp 'exec-path-from-shell-initialize)
+      (exec-path-from-shell-initialize))))
 
 ;;; Server
 (require 'server)
 (unless (server-running-p)
   (server-start))
 
-;;; General
-(defvar quit-restore-window-configuration)
-(setq inhibit-startup-message t
-      initial-scratch-message ";; scratch\n\n"
-      delete-by-moving-to-trash t
-      quit-restore-window-configuration nil
-      ring-bell-function #'ignore
-      scroll-margin 0)
 
-(electric-pair-mode 1)
+(defvar my/init-file
+  (or load-file-name buffer-file-name)
+  "Absolute path of this init file (captured at load/eval time).")
 
-(fset 'yes-or-no-p #'y-or-n-p)
-(delete-selection-mode 1)
+(defmacro my/safely (label &rest body)
+  "Run BODY; on error, report LABEL and continue."
+  (declare (indent 1))
+  `(condition-case err
+       (progn ,@body)
+     (error
+      (message "[init] %s: %s" ,label (error-message-string err))
+      nil)))
 
-(defun disable-flycheck-in-scratch ()
-  "Turn off flycheck (and potentionally others) in *scratch*."
-  (when (string= (buffer-name) "*scratch*")
-    (when (bound-and-true-p flycheck-mode)
-      (flycheck-mode -1))
-    ))
+(defun my/msg (fmt &rest args)
+  "Log to *Messages* only."
+  (apply #'message (concat "[init-lean] " fmt) args))
 
-(add-hook 'lisp-interaction-mode-hook #'disable-flycheck-in-scratch)
-
-;; Backups
-(let ((backup-dir (expand-file-name "emacs-backups" user-emacs-directory)))
-  (unless (file-directory-p backup-dir)
-    (make-directory backup-dir t))
-  (setq backup-directory-alist `(("." . ,backup-dir))))
-
-;; Line numbers only in programming buffers
-(add-hook 'prog-mode-hook #'display-line-numbers-mode)
-(defvar display-line-numbers-type)
-(setq display-line-numbers-type t)
-
-;; Highlight current line
-(global-hl-line-mode 1)
-
-;; Fill column indicator in prog modes
-(add-hook 'prog-mode-hook #'display-fill-column-indicator-mode)
-(setq-default fill-column 100)
-(set-face-attribute 'fill-column-indicator nil
-                    :foreground "#202020"
-                    :background 'unspecified)
-
-;;; Line numbers
-
-(require 'color)
-
-(let* ((face 'line-number)
-       (current (face-foreground face nil t))
-       (dimmed (if current
-                   (color-darken-name current 50)
-                 "#707070")))
-  (set-face-foreground face dimmed))
-
-(let* ((face 'line-number-current-line)
-       (current (face-foreground face nil t))
-       (bright (if current
-                   (color-lighten-name current 70)
-                 "#707070")))
-  (set-face-foreground face bright))
-
-;;; Window management
-
-(defun split-and-follow-horizontally ()
-  "Split window below and focus the new one."
+(defun my/open-init ()
+  "Open this init file."
   (interactive)
-  (split-window-below)
-  (balance-windows)
-  (other-window 1))
+  (if (and (stringp my/init-file) (file-exists-p my/init-file))
+      (find-file my/init-file)
+    (my/msg "Can't locate init file (my/init-file=%S)" my/init-file)))
 
-(defun split-and-follow-vertically ()
-  "Split window right and focus the new one."
+(defun my/open-messages ()
+  "Open the *Messages* buffer."
   (interactive)
-  (split-window-right)
-  (balance-windows)
-  (other-window 1))
+  (pop-to-buffer (messages-buffer)))
 
-(global-set-key (kbd "C-x 2") #'split-and-follow-horizontally)
-(global-set-key (kbd "C-x 3") #'split-and-follow-vertically)
+(defun my/append-scratch (text)
+  "Append TEXT (a string) to *scratch*."
+  (with-current-buffer (get-buffer-create "*scratch*")
+    (let ((inhibit-read-only t))
+      (when (= (buffer-size) 0)
+        (insert my/scratch-base))
+      (save-excursion
+        (goto-char (point-max))
+        (insert text)
+        (unless (string-suffix-p "\n" text)
+          (insert "\n"))))))
 
-(defun copy-current-line ()
-  "Copy the current line into the kill ring."
-  (interactive)
-  (save-excursion
-    (beginning-of-line)
-    (let ((start (point)))
-      (forward-line)
-      (kill-ring-save start (point))
-      (message "Copied whole line"))))
+(defvar my/scratch-warned nil
+  "Non-nil once we've appended the custom failure banner to *scratch*.")
 
-(global-set-key (kbd "C-c w") #'copy-current-line)
+(defun my/scratch-warn-once (text)
+  "Append TEXT to *scratch* once per session."
+  (unless my/scratch-warned
+    (setq my/scratch-warned t)
+    (my/append-scratch text)))
 
-;; Golden ratio (manual trigger)
-(use-package golden-ratio
-  :bind (("C-c =" . golden-ratio)))
+;; ---------------------------------------------------------------------
+;; Custom dir + custom-file + theme (LOAD CUSTOM EARLY, SAFELY)
+;;
+;; Rule:
+;; - location of custom dir/file comes from variables above
+;; - values (my/theme, my/fonts, my/scratch-base, etc.)
+;;   may be overridden by custom.el before we use them elsewhere.
+;; ---------------------------------------------------------------------
 
-;;; Helpers
+(defvar my/custom-had-error nil
+  "Non-nil if custom dir/file/theme had an error (missing/broken/unavailable).")
+
+(defvar my/custom-dir nil
+  "Resolved custom directory, or nil if disabled.")
+
+(defvar my/custom-file nil
+  "Resolved custom file path, or nil if disabled.")
+
+(defun my/disable-custom (why &optional err)
+  "Disable custom dir/custom-file handling and report WHY. If ERR non-nil, log it too."
+  (setq my/custom-dir-relative nil
+        my/custom-file-name nil
+        my/custom-dir nil
+        my/custom-file nil
+        my/custom-had-error t)
+  (if err
+      (my/msg "%s: %s" why (error-message-string err))
+    (my/msg "%s" why))
+  (my/scratch-warn-once
+   ";; Custom file failed to load. Running with defaults.\n;; See *Messages* for details."))
+
+;; Resolve paths from knobs
+(setq my/custom-dir
+      (and my/custom-dir-relative
+           (expand-file-name my/custom-dir-relative user-emacs-directory)))
+
+(setq my/custom-file
+      (and my/custom-dir my/custom-file-name
+           (expand-file-name my/custom-file-name my/custom-dir)))
+
+;; Custom dir is the root capability: if enabled, it must exist.
+(when my/custom-dir
+  (if (file-directory-p my/custom-dir)
+      (progn
+        (add-to-list 'load-path my/custom-dir)
+        (add-to-list 'custom-theme-load-path my/custom-dir))
+    (my/disable-custom (format "Custom dir not found: %s" my/custom-dir))))
+
+;; Load custom-file early so it can override values before we use them.
+(when (and my/custom-dir my/custom-file-name)
+  (setq custom-file my/custom-file)
+  (cond
+   ((not (and (stringp my/custom-file) (file-exists-p my/custom-file)))
+    ;; Missing custom file is not a hard error, but we treat it as “custom disabled”.
+    (my/disable-custom (format "Custom file not found: %s" my/custom-file)))
+   (t
+    (condition-case err
+        (load custom-file nil 'nomessage)
+      (error
+       (my/disable-custom (format "Error loading custom file: %s" my/custom-file) err))))))
+
+;; Informational messages AFTER custom-file, so they reflect final values.
+(when (null my/custom-dir-relative)
+  (my/msg "Custom dir: disabled"))
+(when (and my/custom-dir-relative (null my/custom-file-name))
+  (my/msg "Custom file: disabled"))
+(when (and my/custom-dir-relative (null my/theme))
+  (my/msg "Theme: disabled"))
+
+;; If the custom dir exists, it can also serve as a theme dir, but theme
+;; loading should not depend on it.
+(when (and my/custom-dir (file-directory-p my/custom-dir))
+  (add-to-list 'custom-theme-load-path my/custom-dir))
+
+;; Theme (independent of custom-file/custom-dir)
+(when my/theme
+  (my/safely "load theme"
+    (load-theme my/theme t)))
+
+;; ---------------------------------------------------------------------
+;; Keybind override blockers (flyspell etc.)
+;; ---------------------------------------------------------------------
+
+(defun my/block-keys-in-keymap (keymap)
+  "Remove `my/key-override-blockers` bindings from KEYMAP."
+  (when (keymapp keymap)
+    (dolist (key my/key-override-blockers)
+      (define-key keymap (kbd key) nil))))
+
+(my/safely "key override blockers"
+  (dolist (pair my/key-override-culprits)
+    (let ((feature (car pair))
+          (map-sym  (cdr pair)))
+      (with-eval-after-load feature
+        (when (boundp map-sym)
+          (my/block-keys-in-keymap (symbol-value map-sym)))))))
+
+;; ---------------------------------------------------------------------
+;; Basics (custom.el already loaded, so overridden values apply)
+;; ---------------------------------------------------------------------
+
+(my/safely "basic vars"
+  (setq inhibit-startup-message t
+        inhibit-startup-screen t
+        ring-bell-function #'ignore
+        delete-by-moving-to-trash t
+        initial-scratch-message my/scratch-base)
+  (fset 'yes-or-no-p #'y-or-n-p)
+  (setq-default cursor-type 'bar))
+
+(my/safely "minor modes"
+  (electric-pair-mode 1)
+  (delete-selection-mode 1))
 
 (defun duplicate-dwim ()
   "Duplicate current line, or active region if any."
@@ -235,227 +297,315 @@
         (newline)
         (insert line)))))
 
+;; ---------------------------------------------------------------------
+;; UI chrome
+;; ---------------------------------------------------------------------
+
+(my/safely "disable chrome"
+  (dolist (mode '(scroll-bar-mode tool-bar-mode menu-bar-mode))
+    (when (fboundp mode)
+      (funcall mode -1))))
+
+;; Line numbers only in programming buffers
+(add-hook 'prog-mode-hook #'display-line-numbers-mode)
+(defvar display-line-numbers-type)
+(setq display-line-numbers-type t)
+
+;; Fill column indicator in prog modes
+(add-hook 'prog-mode-hook #'display-fill-column-indicator-mode)
+(setq-default fill-column 100)
+(set-face-attribute 'fill-column-indicator nil
+                    :foreground "#202020"
+                    :background 'unspecified)
+
+;; ---------------------------------------------------------------------
+;; Transient: launcher menu
+;; ---------------------------------------------------------------------
+
+(my/safely "require transient"
+  (require 'transient))
+
+(declare-function my/switch-buffer-or-recent "init")
+
+(transient-define-prefix my/menu ()
+  "Launcher."
+  [["Open"
+    ("f" "File"            find-file)
+    ("d" "Directory"       dired)
+    ("p" "Project"         project-switch-project)
+    ("r" "Recent/buffer"   my/switch-buffer-or-recent)
+    ("m" "Messages"        my/open-messages)
+    ("i" "Init"            my/open-init)]
+   ["Window"
+    ("v" "Split vertical"        split-window-right)
+    ("h" "Split horizontal"      split-window-below)
+    ("w" "Cycle windows"         other-window)
+    ("0" "Close window"          delete-window)
+    ("1" "Close other windows"   delete-other-windows)
+    ("k" "Kill buffer"           kill-this-buffer)
+    ("K" "Kill buffer + close"   kill-buffer-and-window)]
+   ["Search"
+    ("s" "Quick (i-search)"      isearch-forward)
+    ("o" "Results (occur)"       occur)
+    ("g" "Project (grep)"        project-find-regexp)]]
+  [["Exit"
+    ("q" "Close menu" transient-quit-one)
+    ("QR" "Restart Emacs" restart-emacs)
+    ("QQ" "Quit Emacs" save-buffers-kill-terminal)]])
+
+(my/safely "Transient keybind"
+  (global-set-key (kbd "C-|") #'my/menu))
+
+;; ---------------------------------------------------------------------
+;; Completion and Which-Key
+;; ---------------------------------------------------------------------
+
+(my/safely "completion"
+  (fido-vertical-mode 1)
+  (setq completion-styles '(flex basic)))
+
+(my/safely "which-key"
+  (require 'which-key)
+  (setq which-key-idle-delay 0.5
+        which-key-idle-secondary-delay 0.05)
+  (which-key-mode 1))
+
+;; ---------------------------------------------------------------------
+;; Searching
+;; ---------------------------------------------------------------------
+
+(my/safely "search defaults"
+  (setq search-whitespace-regexp ".*"
+        case-fold-search t
+        isearch-lazy-highlight t
+        lazy-highlight-cleanup t
+        search-default-mode #'char-fold-to-regexp
+        isearch-allow-scroll t))
+
+;; ---------------------------------------------------------------------
+;; Faces / completion buffer readability
+;; ---------------------------------------------------------------------
+
+(defun my/apply-opinionated-faces ()
+  "Apply opinionated face tweaks when enabled."
+  (when my/strip-some-colours
+    (my/safely "apply opinionated faces"
+      (set-face-attribute 'completions-common-part nil
+                          :foreground 'unspecified
+                          :inherit 'default
+                          :weight 'bold))))
+
+(my/apply-opinionated-faces)
+
+;; ---------------------------------------------------------------------
+;; Fonts (optional) (custom.el already loaded, so overrides work)
+;; ---------------------------------------------------------------------
+(global-hl-line-mode 1)
+
+(defun my/font-height ()
+  "Return the configured font height for this session."
+  (or (and (integerp my/font-height-override)
+           my/font-height-override)
+      100))
+
+(defun my/font-setter (desired-fonts)
+  "Set the first available font from DESIRED-FONTS for this session and log it."
+  (my/safely "font-setter"
+    (when (and desired-fonts (listp desired-fonts))
+      (let ((chosen nil)
+            (height (my/font-height)))
+        (dolist (name desired-fonts)
+          (when (and (not chosen)
+                     (stringp name)
+                     (find-font (font-spec :name name)))
+            (setq chosen name)))
+        (if chosen
+            (progn
+              (set-face-attribute 'default nil :font chosen :height height)
+              (my/msg "Font selected: %s (height %d)" chosen height))
+          (my/msg "No preferred fonts found; leaving default font unchanged"))))))
+
+(when my/fonts
+  (my/font-setter my/fonts))
+
+;; ---------------------------------------------------------------------
+;; recentf + “buffers or recent files” switcher
+;; ---------------------------------------------------------------------
+
+(my/safely "recentf"
+  (require 'recentf)
+  (recentf-mode 1)
+  (setq recentf-max-saved-items 200))
+
+(my/safely "require seq"
+  (require 'seq))
+
+(defun my/switch-buffer-or-recent ()
+  "Switch to a buffer or open a recent file (built-in only)."
+  (interactive)
+  (my/safely "switch buffer/recent"
+    (let* ((buffers (mapcar #'buffer-name (buffer-list)))
+           (files (seq-filter #'file-exists-p recentf-list))
+           (candidates
+            (append
+             (mapcar (lambda (b) (concat "[B] " b)) buffers)
+             (mapcar (lambda (f) (concat "[F] " f)) files)))
+           (choice (completing-read "Buffer or file: " candidates nil t)))
+      (when (and (stringp choice) (not (string-empty-p choice)))
+        (cond
+         ((string-prefix-p "[B] " choice)
+          (switch-to-buffer (substring choice 4)))
+         ((string-prefix-p "[F] " choice)
+          (find-file (substring choice 4))))))))
+
+;; General helpers
+
+(defun copy-current-line ()
+  "Copy the current line into the kill ring."
+  (interactive)
+  (save-excursion
+    (beginning-of-line)
+    (let ((start (point)))
+      (forward-line)
+      (kill-ring-save start (point))
+      (message "Copied whole line"))))
+
 (defun my/mark-defun ()
-  "MARK-DEFUN alternative that corresponds to END-OF-DEFUN and BEGINNING-OF-DEFUN."
+  "mark-defun alternative using end/beginning-of-defun."
   (interactive)
   (end-of-defun)
   (push-mark (point) t t)
-  (beginning-of-defun)
-  )
+  (beginning-of-defun))
 
-(set-face-attribute 'vertical-border nil
-                    :foreground "#444444")
+;; Backups
+(let ((backup-dir (expand-file-name "emacs-backups" user-emacs-directory)))
+  (unless (file-directory-p backup-dir)
+    (make-directory backup-dir t))
+  (setq backup-directory-alist `(("." . ,backup-dir))))
 
-;;; Keybinds and basic use
+;; ---------------------------------------------------------------------
+;; Minibuffer history persistence (built-in)
+;; ---------------------------------------------------------------------
 
-;; Core bindings that conceptually belong to `emacs` itself
-(use-package emacs
-  :bind (("C-c C-a" . mark-whole-buffer)
-         ("C-c a"   . mark-whole-buffer)
-         ("C-M-h"   . my/mark-defun)
-         ("M-0"     . fixup-whitespace)
-         ("C->"     . scroll-up)
-         ("C-<"     . scroll-down)
-         ("M-o"     . my/other-window-or-ace)
-         ("C-x o"     . my/other-window-or-ace)
-         ("C-c o"   . delete-other-windows)
-         ("C-c 0"   . delete-window)
-         ("C-c ]"   . next-buffer)
-         ("C-c ["   . previous-buffer)
-         ("C-M-l"   . duplicate-dwim)))
+(require 'savehist)
 
-;; Make some keys globally dominant
-(use-package bind-key
-  :config
-  (bind-key* "C-\\"  #'execute-extended-command)
-  (bind-key* "C-."   #'forward-word)
-  (bind-key* "C-,"   #'backward-word)
-  (bind-key* "C-x K" #'kill-buffer-and-window))
+(setq savehist-additional-variables
+      '(kill-ring
+        search-ring
+        regexp-search-ring))
 
-;; Drag lines/regions with M-p / M-n
-(use-package drag-stuff
-  :hook ((text-mode . drag-stuff-mode)
-         (prog-mode . drag-stuff-mode))
-  :bind (:map drag-stuff-mode-map
-              ("M-p" . drag-stuff-up)
-              ("M-n" . drag-stuff-down)))
+(setq savehist-autosave-interval 300) ;; seconds (optional, conservative)
 
-;; Visual undo
-(declare-function vundo-backward "vundo")
-(declare-function vundo-forward  "vundo")
-(use-package vundo
-  :bind (("C-c v" . vundo))
-  :config
-  (define-key vundo-mode-map (kbd ",") #'vundo-backward)
-  (define-key vundo-mode-map (kbd ".") #'vundo-forward))
+(savehist-mode 1)
 
-;; Ace window
-(use-package ace-window)
+;; ---------------------------------------------------------------------
+;; Project management (built-in)
+;; ---------------------------------------------------------------------
 
-(defun my/other-window-or-ace ()
-  "Like `other-window`, but use `ace-window` when more than 3 windows exist instead of the default 2."
-  (interactive)
-  (if (> (count-windows) 3)
-      (call-interactively #'ace-window)
-    (other-window 1)))
-
-;; Multiple cursors
-(use-package multiple-cursors
-  :bind (("C-M-]" . mc/unmark-next-like-this)
-         ("C-]" . mc/mark-next-lines)
-         ("M-S-SPC"      . mc/mark-all-dwim)))
-
-;; Expand
-(use-package expand-region
-  :ensure t
-  :bind (("C-;"   . er/expand-region)
-         ("C-M-;" . er/contract-region)))
-
-;; Avy navigation
-(use-package avy
-  :bind (("C-'"   . avy-goto-char)
-         ("C-M-'" . avy-goto-line)
-         ("C-\""  . avy-zap-up-to-char)))
-
-(custom-set-faces
- '(avy-lead-face   ((t (:foreground "black" :background "white"))))
- '(avy-lead-face-0 ((t (:foreground "white" :background "orange"))))
- '(avy-lead-face-1 ((t (:foreground "black" :background "green"))))
- '(avy-lead-face-2 ((t (:foreground "white" :background "blue")))))
-
-;;; Completion, search, nav
-
-(use-package which-key
-  :init (which-key-mode 1))
-
-;;; Completion, search, nav
-
-(use-package recentf
-  :ensure nil
-  :init
-  (recentf-mode 1)
-  :config
-  (setq recentf-max-saved-items 200
-        recentf-max-menu-items 50))
+(require 'project)
+;; This is just a wrapper so we can keep the keybinds in the keybind section
+(keymap-set global-map "C-c p" project-prefix-map)
 
 
-;; Keep which-key if you like it (it’s fine)
-(use-package which-key
-  :init (which-key-mode 1))
+;; ---------------------------------------------------------------------
+;; Keybind helpers
+;; ---------------------------------------------------------------------
 
-;; Just use builtins
-(fido-mode 1)
-(icomplete-vertical-mode 1)
+(defun my/apply-keybinds ()
+  "Apply `my/lean-keybinds` safely."
+  (my/safely "apply keybinds"
+    (dolist (pair my/keybinds)
+      (let ((key (kbd (car pair)))
+            (fn  (cdr pair)))
+        (when (fboundp fn)
+          (global-set-key key fn))))))
 
-;; Save minibuffer history (recommended with any completion UI)
-(use-package savehist
-  :ensure nil
-  :init
-  (savehist-mode 1))
 
-;; Better matching: type space-separated patterns in any order
-(use-package orderless
-  :init
-  (setq completion-styles '(orderless basic)
-        completion-category-defaults nil
-        completion-category-overrides '((file (styles basic partial-completion)))))
+(my/apply-keybinds)
 
-;; Helpful annotations in completion lists
-(use-package marginalia
-  :init
-  (marginalia-mode 1))
+(my/msg "Loaded successfully.")
 
-;; Consult: modern replacements for counsel/swiper
-(use-package consult
-  :bind (("C-s"     . consult-line)
-         ("C-S-s"   . consult-line-multi)
-         ("C-c b"   . consult-buffer)
-         ("C-c SPC" . consult-buffer)
-         ("M-y"     . consult-yank-pop)
-         ;; Optional extras that are usually handy:
-         ("C-c r"   . consult-ripgrep)
-         ("C-c i"   . consult-imenu)))
+;; ---------------------------------------------------------------------
+;; TTY clipboard / mouse (Ghostty, etc.)
+;; ---------------------------------------------------------------------
 
-;; Make M-x use normal completion (Vertico will enhance it automatically)
-;; If you prefer, you can explicitly bind it:
-(global-set-key (kbd "M-x") #'execute-extended-command)
+;;; Terminal setup
 
-;; Replace company with corfu
-(use-package corfu
-  :ensure t
-  :hook (prog-mode . corfu-mode)
-  :custom
-  ;; Popup behaviour
-  (corfu-auto t)                 ; show popup automatically
-  (corfu-auto-delay 0.05)
-  (corfu-auto-prefix 1)
-  (corfu-cycle t)                ; wrap around at ends
-  (corfu-preselect 'first)
-  
-  ;; Safety / sanity
-  (corfu-quit-no-match 'separator)
-  (corfu-preview-current nil)    ; no inline preview junk
+;; ----- GHOSTTY CONFIG -----
+;; # Basic ghostty config for our terminal emacs
+;; # /home/d/.config/ghostty/config
 
-  :bind
-  (:map corfu-map
-        ;; Accept selection
-        ("TAB"     . corfu-insert)
-        ("<tab>"   . corfu-insert)
+;; # Set a black background theme
+;; theme = Builtin Tango Dark
 
-        ;; Navigate
-        ("C-n"     . corfu-next)
-        ("C-p"     . corfu-previous)
-        ("<down>"  . corfu-next)
-        ("<up>"    . corfu-previous)
+;; # Nuke all keybinds
+;; keybind = clear
 
-        ;; Abort
-        ("C-g"     . corfu-quit)))
+;; # Always allow copy/paste
+;; clipboard-paste-protection = false
+;; clipboard-paste-bracketed-safe = true
+;; clipboard-read = allow
+;; clipboard-write = allow
 
-;; for terminal UI
-(use-package corfu-terminal
-  :ensure t
-  :after corfu
-  :config
-  (corfu-terminal-mode 1))
+;; # Block copy/paste notifications
+;; app-notifications = no-clipboard-copy
 
-(use-package prescient
-  :ensure t
-  :config
-  (prescient-persist-mode 1))
+;; # Make Ctrl-Backspace delete word
+;; keybind = ctrl+backspace=text:\x1b\x7f
 
-(use-package corfu-prescient
-  :ensure t
-  :after (corfu prescient)
-  :config
-  (corfu-prescient-mode 1))
+;; ----- END GHOSTTY CONFIG -----
 
-;; Flyspell popup correction menu
-(use-package flyspell
-  :ensure nil)
+(defun my/term--tty-setup ()
+  "Robust TTY setup for xterm-style terminals (clipboard + mouse)."
+  (unless (display-graphic-p)
+    ;; 1) Force a known-good TERM. Don't try to be clever.
+    (setenv "TERM" "xterm-256color")
 
-(use-package flyspell-correct
-  :after flyspell
-  :bind (:map flyspell-mode-map
-              ("C-c $" . flyspell-correct-wrapper)
-              ("C-c 4" . flyspell-correct-wrapper)
-              ))
+    ;; 2) Tell Emacs up-front which xterm capabilities to assume.
+    ;;    This must happen BEFORE terminal init / xterm setup.
+    (setq xterm-extra-capabilities '(getSelection setSelection modifyOtherKeys))
 
-(use-package project
-  :ensure nil            ;; built-in
-  :bind-keymap
-  ("C-c p" . project-prefix-map))
+    ;; 3) Ensure terminal init runs with the TERM we just forced.
+    (tty-run-terminal-initialization (selected-frame) (getenv "TERM"))
 
-;;; Tools
-(use-package rg
-  :config
-  (setq xref-search-program 'ripgrep))
+    ;; 4) Mouse support
+    (require 'xt-mouse)
+    (xterm-mouse-mode 1)
+    (mouse-wheel-mode 1)
+    (setq mouse-wheel-scroll-amount '(3 ((shift) . 6)))
 
-(use-package flycheck
-  :hook (prog-mode . flycheck-mode))
+    ;; 5) Disable GUI-only pixel scrolling if it somehow got enabled
+    (when (bound-and-true-p pixel-scroll-precision-mode)
+      (pixel-scroll-precision-mode -1))))
 
-(use-package magit)
+;; Run at the correct lifecycle point for TTY frames:
+(add-hook 'tty-setup-hook #'my/term--tty-setup)
 
-;;; Init config
+;; Also run once immediately (covers some startup orders):
+(my/term--tty-setup)
+
+;;; Windows
+(when (and (not (display-graphic-p))
+           (eq system-type 'windows-nt))
+
+  (tty-run-terminal-initialization (selected-frame) (getenv "TERM"))
+
+  (setq select-enable-clipboard t
+        select-enable-primary t)
+
+  (setq interprogram-cut-function
+        (lambda (text)
+          (call-process
+           "powershell" nil nil nil
+           "-NoProfile" "-Command"
+           "Set-Clipboard" text)))
+
+  (setq interprogram-paste-function
+        (lambda ()
+          (string-trim-right
+           (shell-command-to-string
+            "powershell -NoProfile -Command Get-Clipboard")))))
+
 
 (defgroup my-init nil
   "Personal init file loading."
@@ -503,5 +653,9 @@
                 (load-file path)
               (message "External init file not found: %s" filename)))
         (message "Skipping external init file: %s" filename))))))
+
+(provide 'init)
+
+
 
 ;;; init.el ends here
