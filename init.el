@@ -65,6 +65,7 @@ This is opinionated and may partially override theme colours.")
     ("C-c a"    . mark-whole-buffer)
     ("C-M-l"    . duplicate-dwim)
     ("C-M-h"    . my/mark-defun)
+    ("C-a"      . my/c-a-smart)
 
     ("M-0"      . fixup-whitespace)
 
@@ -510,6 +511,17 @@ This is opinionated and may partially override theme colours.")
 ;; ---------------------------------------------------------------------
 ;; Keybind helpers
 ;; ---------------------------------------------------------------------
+
+(defun my/c-a-smart ()
+  "First go to first non-whitespace on the line.
+If pressed again (or if line is blank), go to column 0."
+  (interactive)
+  (let ((orig (point)))
+    (back-to-indentation)
+    (when (or (= (point) orig)
+              (looking-at-p "$"))   ;; blank/whitespace-only line after indent
+      (move-beginning-of-line 1))))
+
 
 (defun my/apply-keybinds ()
   "Apply `my/lean-keybinds` safely."
