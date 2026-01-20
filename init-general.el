@@ -149,20 +149,31 @@
 
 ;; Autocomplete popup
 (use-package company
+  :defer t                            ; load only when needed
   :hook (prog-mode . company-mode)
-  :custom
-  (company-idle-delay 0.05)
-  (company-minimum-prefix-length 1)
-  (company-tooltip-limit 20)
-  (company-selection-wrap-around t)
-  (company-require-match nil)
-  :bind (:map company-active-map
-              ("TAB" . company-complete-selection)
-              ("<tab>" . company-complete-selection)))
 
-(setq company-format-margin-function nil)
+  :init
+  ;; safe settings — no lambdas, no maps here
+  (setq company-minimum-prefix-length 1
+        company-tooltip-limit 20
+	company-format-margin-function nil
+        company-selection-wrap-around t
+        company-require-match nil)
+
+  :config
+  ;; this sets the delay to nil (ie off) when in an area
+  ;; that emacs believes is a comment, and anywhere
+  ;; else the delay is 0.05.
+  (setq company-idle-delay
+        (lambda () (if (nth 4 (syntax-ppss)) nil 0.05)))
+
+  :bind
+  (:map company-active-map
+   ("TAB"   . company-complete-selection)
+   ("<tab>" . company-complete-selection)))
 
 ;; Flyspell popup correction menu
+
 (use-package flyspell
   :ensure nil)
 
