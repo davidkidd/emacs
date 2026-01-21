@@ -544,27 +544,32 @@ If pressed again (or if line is blank), go to column 0."
 ;;; Terminal setup
 
 ;; ----- GHOSTTY CONFIG -----
-;; # Basic ghostty config for our terminal emacs
-;; # /home/d/.config/ghostty/config
-
-;; # Set a black background theme
-;; theme = Builtin Tango Dark
-
-;; # Nuke all keybinds
-;; keybind = clear
-
-;; # Always allow copy/paste
-;; clipboard-paste-protection = false
-;; clipboard-paste-bracketed-safe = true
-;; clipboard-read = allow
-;; clipboard-write = allow
-
-;; # Block copy/paste notifications
-;; app-notifications = no-clipboard-copy
-
-;; # Make Ctrl-Backspace delete word
-;; keybind = ctrl+backspace=text:\x1b\x7f
-
+;;# Basic ghostty config for our terminal emacs
+;;# /home/d/.config/ghostty/config
+;;
+;;# Set a black background theme
+;;theme = IBM 5153 CGA (Black)
+;;
+;;# May need to adjust this based on dpi
+;;font-size = 11
+;;
+;;# nuke all keybinds
+;;keybind = clear
+;;
+;;# Always allow copy/paste
+;;clipboard-paste-protection = false
+;;clipboard-paste-bracketed-safe = true
+;;clipboard-read = allow
+;;clipboard-write = allow
+;;
+;;# Block copy/paste notifications
+;;app-notifications = no-clipboard-copy
+;;
+;;# Make Ctrl-Backspace delete word
+;;keybind = ctrl+backspace=text:\x1b\x7f
+;;
+;;# Bar style
+;;cursor-style = bar
 ;; ----- END GHOSTTY CONFIG -----
 
 (defun my/term--tty-setup ()
