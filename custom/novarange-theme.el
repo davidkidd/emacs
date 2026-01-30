@@ -70,6 +70,12 @@
    `(font-lock-variable-name-face ((,class (:foreground ,var))))
    `(font-lock-warning-face ((,class (:foreground ,warning :background ,bg2))))
    `(term-color-black ((,class (:foreground ,fg2 :background ,unspec))))
+      ;; TTY (terminal) right-click / popup menus
+   `(tty-menu-enabled-face  ((,class (:foreground ,fg1 :background ,bg2))))
+   `(tty-menu-disabled-face ((,class (:foreground ,fg4 :background ,bg2))))
+   `(tty-menu-selected-face ((,class (:foreground ,fg1 :background ,selection :weight bold))))
+   `(tty-menu-title-face    ((,class (:foreground ,builtin :background ,bg2 :weight bold))))
+
    `(solaire-default-face ((,class (:background ,bg5 :foreground ,fg1))))
 ;;   `(solaire-hl-line-face ((,class (:background ,bg3 :foreground ,fg1))))
    ;; `(region ((,class (:background ,fg1 :foreground ,bg1))))

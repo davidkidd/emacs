@@ -276,8 +276,7 @@ This is opinionated and may partially override theme colours.")
         ring-bell-function #'ignore
         delete-by-moving-to-trash t
         initial-scratch-message my/scratch-base)
-  (fset 'yes-or-no-p #'y-or-n-p)
-  (setq-default cursor-type 'bar))
+  (fset 'yes-or-no-p #'y-or-n-p))
 
 (my/safely "minor modes"
   (electric-pair-mode 1)
@@ -548,7 +547,7 @@ If pressed again (or if line is blank), go to column 0."
 ;;# /home/d/.config/ghostty/config
 ;;
 ;;# Set a black background theme
-;;theme = IBM 5153 CGA (Black)
+;;theme = Mathias
 ;;
 ;;# May need to adjust this based on dpi
 ;;font-size = 11
@@ -569,7 +568,7 @@ If pressed again (or if line is blank), go to column 0."
 ;;keybind = ctrl+backspace=text:\x1b\x7f
 ;;
 ;;# Bar style
-;;cursor-style = bar
+;;cursor-style = block
 ;; ----- END GHOSTTY CONFIG -----
 
 (defun my/term--tty-setup ()
