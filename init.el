@@ -645,7 +645,7 @@ If pressed again (or if line is blank), go to column 0."
 
 ;; Example of setting this when launching from the commandline:
 ;; emacs -q --eval "(setq my/block-extra-init t)" -l ~/.emacs.d/init.el
-;;
+
 ;; Or, to set a shortcut entry:
 ;; [Desktop Entry]
 ;; Type=Application
@@ -656,6 +656,12 @@ If pressed again (or if line is blank), go to column 0."
 ;; Terminal=false
 ;; Categories=Development;TextEditor;
 ;; StartupWMClass=Emacs
+
+;; Or, in Windows, create a shortcut, go to Properties, put this in 'Target:'
+;;
+;; "C:\Program Files\Emacs\emacs-30.2\bin\runemacs.exe" -q --eval "(setq my/block-extra-init t)" -l "C:\Users\User\AppData\Roaming\.emacs.d\init.el"
+;;
+;; (copy as-is, including quotemarks, adj dirs as needed).
 
 (cond
  ((bound-and-true-p my/block-extra-init)
