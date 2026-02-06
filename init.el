@@ -431,6 +431,12 @@ This is opinionated and may partially override theme colours.")
 (when my/fonts
   (my/font-setter my/fonts))
 
+;; Add a broad Unicode fallback so symbols (e.g. ECA expandable markers)
+;; render even when the primary coding font lacks a glyph.
+(my/safely "unicode symbol fallback font"
+  (when (find-font (font-spec :name "Segoe UI Symbol"))
+    (set-fontset-font t 'unicode "Segoe UI Symbol" nil 'append)))
+
 ;; ---------------------------------------------------------------------
 ;; recentf + “buffers or recent files” switcher
 ;; ---------------------------------------------------------------------
