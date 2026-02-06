@@ -80,4 +80,3 @@
 
 ;; Enable logging
 ;;(setq lsp-log-io nil)
-

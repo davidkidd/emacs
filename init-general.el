@@ -209,7 +209,20 @@
   (advice-add
    'eca-chat--yank-considering-image
    :around
-   #'my/eca-chat--yank-considering-image-maybe))
+   #'my/eca-chat--yank-considering-image-maybe)
+
+  ;; In terminal Emacs, make TAB/C-i (and C-c variants) reliably toggle
+  ;; expandable blocks in ECA chat.
+  (defun my/eca-chat-terminal-tab-bindings ()
+    "Apply terminal-only bindings for expandable block toggling in ECA chat."
+    (unless (display-graphic-p)
+      (local-set-key (kbd "TAB") #'eca-chat-toggle-expandable-block)
+      (local-set-key (kbd "<tab>") #'eca-chat-toggle-expandable-block)
+      (local-set-key (kbd "C-i") #'eca-chat-toggle-expandable-block)
+      (local-set-key (kbd "C-c TAB") #'eca-chat-toggle-expandable-block)
+      (local-set-key (kbd "C-c C-i") #'eca-chat-toggle-expandable-block)))
+
+  (add-hook 'eca-chat-mode-hook #'my/eca-chat-terminal-tab-bindings))
 
 ;; Flyspell popup correction menu
 

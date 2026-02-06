@@ -683,23 +683,23 @@ If pressed again (or if line is blank), go to column 0."
 (defun my/term--tty-setup ()
   "Robust TTY setup for xterm-style terminals (clipboard + mouse)."
   (unless (display-graphic-p)
-    ;; 1) Force a known-good TERM. Don't try to be clever.
-    (setenv "TERM" "xterm-256color")
+    ;; Respect terminal-provided TERM (eg. xterm-ghostty).
+    ;; Forcing TERM can break key decoding in terminal Emacs.
 
-    ;; 2) Tell Emacs up-front which xterm capabilities to assume.
-    ;;    This must happen BEFORE terminal init / xterm setup.
-    (setq xterm-extra-capabilities '(getSelection setSelection modifyOtherKeys))
+    ;; Use conservative xterm capabilities; avoid modifyOtherKeys,
+    ;; which can interfere with TAB/C-i handling in some terminals.
+    (setq xterm-extra-capabilities '(getSelection setSelection))
 
-    ;; 3) Ensure terminal init runs with the TERM we just forced.
+    ;; Re-run terminal initialization for the actual terminal type.
     (tty-run-terminal-initialization (selected-frame) (getenv "TERM"))
 
-    ;; 4) Mouse support
+    ;; Mouse support
     (require 'xt-mouse)
     (xterm-mouse-mode 1)
     (mouse-wheel-mode 1)
     (setq mouse-wheel-scroll-amount '(3 ((shift) . 6)))
 
-    ;; 5) Disable GUI-only pixel scrolling if it somehow got enabled
+    ;; Disable GUI-only pixel scrolling if it somehow got enabled
     (when (bound-and-true-p pixel-scroll-precision-mode)
       (pixel-scroll-precision-mode -1))))
 
