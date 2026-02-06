@@ -61,6 +61,12 @@ Notes:
                  (const :tag "Abbreviated path" path))
   :group 'my-modeline)
 
+(defcustom my/modeline-large-buffer-threshold (* 2 1024 1024)
+  "Buffer size (in bytes) above which total line count is skipped.
+Set to 0 to always compute total lines."
+  :type 'integer
+  :group 'my-modeline)
+
 (defvar-local my/modeline-style-override nil
   "If non-nil, overrides `my/modeline-style` in this buffer.")
 
@@ -79,9 +85,13 @@ Notes:
 
 
 (defun my/modeline--total-lines ()
-  "Return total line count for current buffer."
-  ;; Fast enough for typical buffers; this is the simplest correct approach.
-  (line-number-at-pos (point-max)))
+  "Return total line count for current buffer, or nil when skipped.
+
+For large buffers (see `my/modeline-large-buffer-threshold`), skip
+counting to keep modeline updates responsive."
+  (when (or (<= my/modeline-large-buffer-threshold 0)
+            (< (buffer-size) my/modeline-large-buffer-threshold))
+    (line-number-at-pos (point-max))))
 
 (defun my/modeline--project-name ()
   "Return current project name (string) or nil.
@@ -146,7 +156,11 @@ De-dupes by rendered indicator text so the same thing doesn't appear twice."
 
 (defun my/modeline--pos-segment ()
   "Return cursor position segment."
-  (format "L%d/%d" (line-number-at-pos) (my/modeline--total-lines)))
+  (let ((line (line-number-at-pos))
+        (total (my/modeline--total-lines)))
+    (if total
+        (format "L%d/%d" line total)
+      (format "L%d" line))))
 
 (defun my/modeline--identity-segment ()
   "Return stable identity segment (project, filename, modified, major mode)."
@@ -175,16 +189,6 @@ De-dupes by rendered indicator text so the same thing doesn't appear twice."
             (my/modeline--pos-segment)
             (my/modeline--identity-segment)
             (if minor (format "  %s" minor) ""))))
-
-(defvar mode-line-fill
-  '(:eval
-    (propertize
-     " "
-     'display
-     `((space :align-to
-              (- (+ right right-fringe right-margin)
-                 ,(string-width (format-mode-line right))))))))
-
 
 ;; ---------------------------------------------------------------------
 ;; Renderers (one data source, three layouts)
@@ -295,7 +299,7 @@ De-dupes by rendered indicator text so the same thing doesn't appear twice."
 (global-set-key (kbd "C-c M") #'my/modeline-transient)
 
 
-(my/modeline-set-fill)
+(my/modeline-init)
 
 (provide 'init-modeline)
 ;;; init-modeline.el ends here
