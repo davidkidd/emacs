@@ -3,7 +3,7 @@
 ;;; General setup for external packages.
 ;;; Includes window management, ace, rg, magit and so on.
 ;;; When any particular category grows large, it will be split off into
-;;; its own .el file. 
+;;; its own .el file.
 ;;; Code:
 
 (use-package solaire-mode
@@ -36,6 +36,7 @@
                    (color-lighten-name current 70)
                  "#707070")))
   (set-face-foreground face bright))
+
 
 ;;; Window management
 
@@ -171,6 +172,37 @@
   (:map company-active-map
    ("TAB"   . company-complete-selection)
    ("<tab>" . company-complete-selection)))
+
+;; AI
+(use-package exec-path-from-shell
+  :init
+  (setq exec-path-from-shell-variables
+        '("ANTHROPIC_API_KEY"
+          "OPENAI_API_KEY"
+          "OLLAMA_API_BASE"
+          "OPENAI_API_URL"
+          "ANTHROPIC_API_URL"
+          "ECA_CONFIG"
+          "XDG_CONFIG_HOME"
+          "PATH"
+          "MANPATH"))
+  ;; For macOS and Linux GUI environments
+  (when (memq window-system '(mac ns x))
+    (exec-path-from-shell-initialize)))
+
+(use-package eca
+  :after eca-chat
+  :config
+  (defun my/eca-chat--yank-considering-image-maybe (orig-fn &rest args)
+    "In terminal Emacs, bypass ECA's clipboard probing and run the original yank func."
+    (if (display-graphic-p)
+        (apply orig-fn args)
+      (apply (car args) (cdr args))))
+
+  (advice-add
+   'eca-chat--yank-considering-image
+   :around
+   #'my/eca-chat--yank-considering-image-maybe))
 
 ;; Flyspell popup correction menu
 
