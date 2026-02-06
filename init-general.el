@@ -190,6 +190,13 @@
   (when (memq window-system '(mac ns x))
     (exec-path-from-shell-initialize)))
 
+;; When it uses the API key, it messes up my ECA
+;; environment, because the API key does *not* have the
+;; latest models. Instead, I have use ECA's 'pro' authentication flow
+;; for my plus account. But if it has an API key, it always seems to use it,
+;; even if I correctly use the 'pro' authentication.
+(setenv "OPENAI_API_KEY" nil)
+
 (use-package eca
   :after eca-chat
   :config
