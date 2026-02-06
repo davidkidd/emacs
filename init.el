@@ -89,6 +89,10 @@ This is opinionated and may partially override theme colours.")
 
     ;; Menu
     ("C-|"      . my/menu)
+
+    ;; Dired
+    ("C-c d d"  . open-dired-in-current-directory)
+    ("C-c d s"  . dired-dual-pane)
     )
   "Global keybindings for init.")
 
@@ -118,7 +122,6 @@ This is opinionated and may partially override theme colours.")
 (unless (server-running-p)
   (server-start))
 
-
 (defvar my/init-file
   (or load-file-name buffer-file-name)
   "Absolute path of this init file (captured at load/eval time).")
@@ -134,7 +137,7 @@ This is opinionated and may partially override theme colours.")
 
 (defun my/msg (fmt &rest args)
   "Log to *Messages* only."
-  (apply #'message (concat "[init-lean] " fmt) args))
+  (apply #'message (concat "[init] " fmt) args))
 
 (defun my/open-init ()
   "Open this init file."
@@ -508,6 +511,112 @@ This is opinionated and may partially override theme colours.")
 
 
 ;; ---------------------------------------------------------------------
+;; Dired (built-in only)
+;; ---------------------------------------------------------------------
+
+(require 'dired)
+(require 'find-dired)
+
+(setq dired-listing-switches "--group-directories-first -alh"
+      dired-kill-when-opening-new-dired-buffer t
+      dired-dwim-target t)
+
+;; Prefer external ls (GNU ls) when available
+(setq ls-lisp-use-insert-directory-program t)
+
+(defun open-dired-in-current-directory ()
+  "Open Dired in the directory of the current buffer’s file (or `default-directory')."
+  (interactive)
+  (if buffer-file-name
+      (dired (file-name-directory buffer-file-name))
+    (dired default-directory)))
+
+;; Copy absolute path(s) of marked files; with no marks, copy file at point.
+(defun dired-copy-path-at-point ()
+  "Copy absolute path(s) to kill-ring.
+If files are marked, copy all marked. Otherwise, copy file at point."
+  (interactive)
+  (let* ((files (or (dired-get-marked-files nil nil)
+                    (list (dired-get-file-for-visit)))))
+    (kill-new (mapconcat #'identity files "\n"))
+    (message "Copied %d path(s)" (length files))))
+
+(defun dired-dual-pane (&optional dir)
+  "Open a two-pane vertical split, both panes in Dired on DIR (or current `default-directory')."
+  (interactive)
+  (let ((dir (file-name-as-directory (expand-file-name (or dir default-directory)))))
+    (delete-other-windows)
+    (split-window-right)
+    (dired dir)
+    (other-window 1)
+    (dired dir)
+    (other-window 1)))
+
+(defun dired-dual-pane-to-this ()
+  "In Dired, open directory under point in the other pane.
+If there isn’t a two-window setup yet, create one."
+  (interactive)
+  (unless (derived-mode-p 'dired-mode)
+    (user-error "This command can only be used in Dired"))
+  (let ((target (dired-get-filename nil t)))
+    (unless (and target (file-directory-p target))
+      (user-error "No directory under cursor"))
+    (if (= (length (window-list)) 2)
+        (progn
+          (other-window 1)
+          (dired target)
+          (other-window 1))
+      (delete-other-windows)
+      (split-window-right)
+      (dired default-directory)
+      (other-window 1)
+      (dired target)
+      (other-window 1))))
+
+(defun dired-execute-file ()
+  "Run the file at point fully detached (new session; no stdio).
+Prefers `setsid -f`, falls back to `nohup`, otherwise starts normally."
+  (interactive)
+  (let* ((file (dired-get-file-for-visit))
+         (dir  (and file (file-name-directory file)))
+         (base (and file (file-name-nondirectory file))))
+    (unless (and file (file-exists-p file))
+      (user-error "No file at point"))
+    (let ((default-directory dir)
+          (process-connection-type nil)) ; use a pipe, not a pty
+      (cond
+       ((executable-find "setsid")
+        (start-process "dired-detached" nil "sh" "-c"
+                       (format "setsid -f %s </dev/null >/dev/null 2>&1"
+                               (shell-quote-argument file)))))
+      (unless (get-process "dired-detached")
+        (cond
+         ((executable-find "nohup")
+          (start-process "dired-detached" nil "sh" "-c"
+                         (format "nohup %s </dev/null >/dev/null 2>&1 &"
+                                 (shell-quote-argument file))))
+         (t
+          ;; Last resort: may remain tied to Emacs.
+          (start-process "dired-detached" nil file)))))
+    (message "Launched: %s" base)))
+
+(defun dired-open-containing-dir ()
+  "Open the current file’s directory with point on the file.
+Works from regular or virtual Dired, guarding when file is missing."
+  (interactive)
+  (let ((file (dired-get-file-for-visit)))
+    (if (and file (file-exists-p file))
+        (dired-jump nil file)
+      (user-error "No file at point"))))
+
+(with-eval-after-load 'dired
+  (define-key dired-mode-map (kbd "h") #'dired-up-directory)
+  (define-key dired-mode-map (kbd "l") #'dired-find-file)
+  (define-key dired-mode-map (kbd "W") #'dired-copy-path-at-point)
+  (define-key dired-mode-map (kbd "C-c d o") #'dired-dual-pane-to-this)
+  (define-key dired-mode-map (kbd "C-c x") #'dired-execute-file))
+
+;; ---------------------------------------------------------------------
 ;; Keybind helpers
 ;; ---------------------------------------------------------------------
 
@@ -523,7 +632,7 @@ If pressed again (or if line is blank), go to column 0."
 
 
 (defun my/apply-keybinds ()
-  "Apply `my/lean-keybinds` safely."
+  "Apply `my/keybinds` safely."
   (my/safely "apply keybinds"
     (dolist (pair my/keybinds)
       (let ((key (kbd (car pair)))
