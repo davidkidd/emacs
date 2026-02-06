@@ -70,8 +70,8 @@
         lsp-ui-sideline-ignore-duplicate t))
 
 (custom-theme-set-faces 'user
-  '(flycheck-error-list-info ((t (:foreground "darkorange"))))
-  '(flycheck-fringe-info ((t (:foreground "darkorange")))))
+			'(flycheck-error-list-info ((t (:foreground "darkorange"))))
+			'(flycheck-fringe-info ((t (:foreground "darkorange")))))
 
 (setq-default c-basic-offset 4)
 
