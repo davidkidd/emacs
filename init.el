@@ -97,11 +97,12 @@ This is opinionated and may partially override theme colours.")
   "Global keybindings for init.")
 
 (defvar my/key-override-blockers
-  '("C-." "C-,")
-  "Keys that should never be overridden by minor modes.")
+  '("C-." "C-," "C-c ]" "C-c [")
+  "Keys that should never be overridden by mode maps.")
 
 (defvar my/key-override-culprits
-  '((flyspell . flyspell-mode-map))
+  '((flyspell . flyspell-mode-map)
+    (org . org-mode-map))
   "Alist of (FEATURE . KEYMAP-SYMBOL) to strip keys from after FEATURE loads.")
 
 ;; ---------------------------------------------------------------------
