@@ -78,5 +78,10 @@
 ;; Customize clangd arguments
 (setq lsp-clients-clangd-args '("--clang-tidy" "--background-index" "--log=verbose"))
 
+(add-hook 'go-mode-hook #'lsp)
+(add-hook 'go-mode-hook (lambda () (add-hook 'before-save-hook 'lsp-format-buffer nil t)))
+(add-hook 'go-mode-hook (lambda () (setq tab-width 4)))
+(setq lsp-gopls-server-path "~/go/bin/gopls")
+
 ;; Enable logging
 ;;(setq lsp-log-io nil)
