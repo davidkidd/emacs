@@ -106,7 +106,17 @@ This is opinionated and may partially override theme colours.")
   "Alist of (FEATURE . KEYMAP-SYMBOL) to strip keys from after FEATURE loads.")
 
 ;; ---------------------------------------------------------------------
-;; User customisation is over. Here be dragons.
+;; User customisation is over. Below is the actual init implementation.
+;;
+;; Organisation note:
+;; - Core startup path sections should stay robust and useful even when
+;;   this file is launched in a stripped-down or recovery-style session.
+;; - Optional built-in polish sections add convenience, but should never
+;;   undermine the core startup path.
+;; ---------------------------------------------------------------------
+
+;; ---------------------------------------------------------------------
+;; Core startup path
 ;; ---------------------------------------------------------------------
 
 (require 'subr-x)
@@ -126,6 +136,9 @@ This is opinionated and may partially override theme colours.")
 (defvar my/init-file
   (or load-file-name buffer-file-name)
   "Absolute path of this init file (captured at load/eval time).")
+
+(defvar my/font-selected nil
+  "Font name selected by `my/font-setter`, or nil if none was applied.")
 
 (defmacro my/safely (label &rest body)
   "Run BODY; on error, report LABEL and continue."
@@ -151,6 +164,51 @@ This is opinionated and may partially override theme colours.")
   "Open the *Messages* buffer."
   (interactive)
   (pop-to-buffer (messages-buffer)))
+
+(defun my/check-init-status ()
+  "Show a concise status report for this init.
+
+The report covers the current Emacs session, display mode, custom-file
+state, theme state, font state, and extra init loading controls."
+  (interactive)
+  (let* ((display-mode (if (display-graphic-p) "GUI" "TTY"))
+         (custom-dir-status
+          (cond
+           ((null my/custom-dir-relative) "disabled")
+           ((and my/custom-dir (file-directory-p my/custom-dir)) my/custom-dir)
+           (t "configured but unavailable")))
+         (custom-file-status
+          (cond
+           ((null my/custom-file-name) "disabled")
+           ((and my/custom-file (file-exists-p my/custom-file)) my/custom-file)
+           ((stringp my/custom-file) (format "missing (%s)" my/custom-file))
+           (t "unavailable")))
+         (theme-status
+          (cond
+           ((null my/theme) "disabled")
+           (custom-enabled-themes
+            (mapconcat #'symbol-name custom-enabled-themes ", "))
+           (t (format "configured but not loaded (%S)" my/theme))))
+         (font-status
+          (cond
+           (my/font-selected
+            (format "%s (height %d)" my/font-selected (my/font-height)))
+           ((null my/fonts) "disabled")
+           (t "no preferred font applied"))))
+    (with-help-window (help-buffer)
+      (princ "Init status\n")
+      (princ "===========\n\n")
+      (princ (format "Emacs version:           %s\n" emacs-version))
+      (princ (format "Display mode:            %s\n" display-mode))
+      (princ (format "Init file:               %s\n" my/init-file))
+      (princ (format "Custom dir:              %s\n" custom-dir-status))
+      (princ (format "Custom file:             %s\n" custom-file-status))
+      (princ (format "Custom load errors:      %s\n" (if my/custom-had-error "yes" "no")))
+      (princ (format "Theme:                   %s\n" theme-status))
+      (princ (format "Font:                    %s\n" font-status))
+      (princ (format "Extra init enabled:      %s\n" (if my/enable-extra-init "yes" "no")))
+      (princ (format "Extra init inhibited:    %s\n" (if my/inhibit-extra-init "yes" "no")))
+      (princ (format "Configured extra files:  %d\n" (length my/init-files))))))
 
 (defun my/append-scratch (text)
   "Append TEXT (a string) to *scratch*."
@@ -302,7 +360,7 @@ This is opinionated and may partially override theme colours.")
         (insert line)))))
 
 ;; ---------------------------------------------------------------------
-;; UI chrome
+;; Optional built-in polish: UI chrome
 ;; ---------------------------------------------------------------------
 
 (my/safely "disable chrome"
@@ -323,7 +381,7 @@ This is opinionated and may partially override theme colours.")
                     :background 'unspecified)
 
 ;; ---------------------------------------------------------------------
-;; Transient: launcher menu
+;; Optional built-in polish: launcher menu
 ;; ---------------------------------------------------------------------
 
 (my/safely "require transient"
@@ -339,7 +397,8 @@ This is opinionated and may partially override theme colours.")
     ("p" "Project"         project-switch-project)
     ("r" "Recent/buffer"   my/switch-buffer-or-recent)
     ("m" "Messages"        my/open-messages)
-    ("i" "Init"            my/open-init)]
+    ("i" "Open init"       my/open-init)
+    ("I" "Init status"     my/check-init-status)]
    ["Window"
     ("v" "Split vertical"        split-window-right)
     ("h" "Split horizontal"      split-window-below)
@@ -361,7 +420,7 @@ This is opinionated and may partially override theme colours.")
   (global-set-key (kbd "C-|") #'my/menu))
 
 ;; ---------------------------------------------------------------------
-;; Completion and Which-Key
+;; Optional built-in polish: completion and discoverability
 ;; ---------------------------------------------------------------------
 
 (my/safely "completion"
@@ -387,7 +446,7 @@ This is opinionated and may partially override theme colours.")
         isearch-allow-scroll t))
 
 ;; ---------------------------------------------------------------------
-;; Faces / completion buffer readability
+;; Optional built-in polish: faces / completion readability
 ;; ---------------------------------------------------------------------
 
 (defun my/apply-opinionated-faces ()
@@ -402,7 +461,7 @@ This is opinionated and may partially override theme colours.")
 (my/apply-opinionated-faces)
 
 ;; ---------------------------------------------------------------------
-;; Fonts (optional) (custom.el already loaded, so overrides work)
+;; Optional built-in polish: fonts (custom.el already loaded, so overrides work)
 ;; ---------------------------------------------------------------------
 (global-hl-line-mode 1)
 
@@ -423,6 +482,7 @@ This is opinionated and may partially override theme colours.")
                      (stringp name)
                      (find-font (font-spec :name name)))
             (setq chosen name)))
+        (setq my/font-selected chosen)
         (if chosen
             (progn
               (set-face-attribute 'default nil :font chosen :height height)
@@ -439,7 +499,7 @@ This is opinionated and may partially override theme colours.")
     (set-fontset-font t 'unicode "Segoe UI Symbol" nil 'append)))
 
 ;; ---------------------------------------------------------------------
-;; recentf + “buffers or recent files” switcher
+;; Optional built-in polish: recentf + buffer/file switcher
 ;; ---------------------------------------------------------------------
 
 (my/safely "recentf"
@@ -647,13 +707,12 @@ If pressed again (or if line is blank), go to column 0."
         (when (fboundp fn)
           (global-set-key key fn))))))
 
-
 (my/apply-keybinds)
 
 (my/msg "Loaded successfully.")
 
 ;; ---------------------------------------------------------------------
-;; TTY clipboard / mouse (Ghostty, etc.)
+;; Optional built-in polish: TTY clipboard / mouse (Ghostty, etc.)
 ;; ---------------------------------------------------------------------
 
 ;;; Terminal setup
@@ -685,6 +744,7 @@ If pressed again (or if line is blank), go to column 0."
 ;;
 ;;# Bar style
 ;;cursor-style = block
+;;
 ;; ----- END GHOSTTY CONFIG -----
 
 (defun my/term--tty-setup ()
@@ -743,8 +803,8 @@ If pressed again (or if line is blank), go to column 0."
   "Personal init file loading."
   :group 'initialization)
 
-(defcustom my/load-extra-init t
-  "Set to allow or block extra init loading.  Init files must first be configured in init-files."
+(defcustom my/enable-extra-init t
+  "When non-nil, allow configured extra init files to be loaded.  Init files must first be configured in `my/init-files`."
   :type 'boolean
   :group 'my-init
   :initialize #'custom-initialize-default)
@@ -755,18 +815,18 @@ If pressed again (or if line is blank), go to column 0."
   :group 'my-init
   :initialize #'custom-initialize-default)
 
-(defvar my/block-extra-init nil
+(defvar my/inhibit-extra-init nil
   "When non-nil, skip loading extra init files for this session only.")
 
 ;; Example of setting this when launching from the commandline:
-;; emacs -q --eval "(setq my/block-extra-init t)" -l ~/.emacs.d/init.el
+;; emacs -q --eval "(setq my/inhibit-extra-init t)" -l ~/.emacs.d/init.el
 
 ;; Or, to set a shortcut entry:
 ;; [Desktop Entry]
 ;; Type=Application
 ;; Name=Emacs (minimal)
 ;; Comment=Emacs without extra init files
-;; Exec=emacs -q --eval "(setq my/block-extra-init t)" -l ~/.emacs.d/init.el
+;; Exec=emacs -q --eval "(setq my/inhibit-extra-init t)" -l ~/.emacs.d/init.el
 ;; Icon=emacs
 ;; Terminal=false
 ;; Categories=Development;TextEditor;
@@ -774,14 +834,14 @@ If pressed again (or if line is blank), go to column 0."
 
 ;; Or, in Windows, create a shortcut, go to Properties, put this in 'Target:'
 ;;
-;; "C:\Program Files\Emacs\emacs-30.2\bin\runemacs.exe" -q --eval "(setq my/block-extra-init t)" -l "C:\Users\User\AppData\Roaming\.emacs.d\init.el"
+;; "C:\Program Files\Emacs\emacs-30.2\bin\runemacs.exe" -q --eval "(setq my/inhibit-extra-init t)" -l "C:\Users\User\AppData\Roaming\.emacs.d\init.el"
 ;;
 ;; (copy as-is, including quotemarks, adj dirs as needed).
 
 (cond
- ((bound-and-true-p my/block-extra-init)
+ ((bound-and-true-p my/inhibit-extra-init)
   (message "Extra init loading disabled for this session"))
- ((bound-and-true-p my/load-extra-init)
+ ((bound-and-true-p my/enable-extra-init)
   (dolist (entry my/init-files)
     (let ((filename (car entry))
           (enabled  (cadr entry)))
