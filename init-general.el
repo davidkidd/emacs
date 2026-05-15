@@ -148,6 +148,25 @@
          ("C-c r"   . consult-ripgrep)
          ("C-c i"   . consult-imenu)))
 
+;; Context actions for minibuffer candidates / thing at point
+(use-package embark
+  :bind (("C-c ." . embark-act)
+         ("C-c ;" . embark-dwim)
+         ("C-h B" . embark-bindings))
+  :init
+  ;; Replace the default prefix-help-command with a contextual bindings view.
+  (setq prefix-help-command #'embark-prefix-help-command)
+  :config
+  ;; Keep action buffers out of the way.
+  (add-to-list 'display-buffer-alist
+               '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
+                 nil
+                 (window-parameters (mode-line-format . none)))))
+
+(use-package embark-consult
+  :after (embark consult)
+  :hook (embark-collect-mode . consult-preview-at-point-mode))
+
 ;; Autocomplete popup
 (use-package company
   :defer t                            ; load only when needed
@@ -201,7 +220,7 @@
   :after eca-chat
   :init
   ;; Force ECA to always use this model regardless of server defaultModel.
-  (setq eca-chat-custom-model "openai/gpt-5.3-codex")
+  (setq eca-chat-custom-model "openai/gpt-5.4")
   :config
   (defun my/eca-chat--yank-considering-image-maybe (orig-fn &rest args)
     "In terminal Emacs, bypass ECA's clipboard probing and run the original yank func."
@@ -227,13 +246,20 @@
     ;; In terminal Emacs, make TAB/C-i (and C-c variants) reliably toggle
     ;; expandable blocks in ECA chat.
     (unless (display-graphic-p)
-      (local-set-key (kbd "TAB") #'eca-chat-toggle-expandable-block)
-      (local-set-key (kbd "<tab>") #'eca-chat-toggle-expandable-block)
+      
+      (local-set-key (kbd "TAB") #'eca-chat--key-pressed-tab)
+      (local-set-key (kbd "<tab>") #'eca-chat--key-pressed-tab)
+      ;; (local-set-key (kbd "<tab>") #'eca-chat-toggle-expandable-block)
       (local-set-key (kbd "C-i") #'eca-chat-toggle-expandable-block)
       (local-set-key (kbd "C-c TAB") #'eca-chat-toggle-expandable-block)
       (local-set-key (kbd "C-c C-i") #'eca-chat-toggle-expandable-block)))
 
   (add-hook 'eca-chat-mode-hook #'my/eca-chat-buffer-bindings))
+
+(setq eca-chat-trust-use-icon-library nil)
+
+;; Agent shell
+(use-package agent-shell)
 
 ;; Flyspell popup correction menu
 
