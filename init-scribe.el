@@ -23,20 +23,26 @@ Set to nil or \"\" for nothing."
 
 (defvar nova-scribe--recording-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c ;") #'nova-scribe-toggle)
+    (define-key map (kbd "C-c :") #'nova-scribe-toggle)
     (define-key map (kbd "C-g")   #'nova-scribe-cancel)
     map))
 
 (defun nova-scribe--process-filter (_proc chunk)
   (setq nova-scribe--output (concat nova-scribe--output chunk)))
 
+(defun nova-scribe--extract-json-result (output)
+  (condition-case _err
+      (json-parse-string output :object-type 'alist)
+    (error nil)))
+
 (defun nova-scribe--process-sentinel (proc _event)
   (when (memq (process-status proc) '(exit signal))
     (let* ((cancelled (process-get proc :cancelled))
            (marker    (process-get proc :insert-marker))
-           (output    nova-scribe--output)
-           (text      (when (string-match "^Transcription:[ \t]*\\(.*\\)$" output)
-                        (match-string 1 output))))
+           (result    (nova-scribe--extract-json-result nova-scribe--output))
+           (ok        (alist-get 'ok result))
+           (text      (alist-get 'transcription result))
+           (err       (alist-get 'error result)))
       (setq nova-scribe--proc nil
             nova-scribe--output ""
             nova-scribe--insert-marker nil)
@@ -44,7 +50,7 @@ Set to nil or \"\" for nothing."
       (cond
        (cancelled
         (message "nova_scribe: cancelled"))
-       ((and text marker (marker-buffer marker))
+       ((and ok text marker (marker-buffer marker))
         (with-current-buffer (marker-buffer marker)
           (let ((pos (marker-position marker))
                 (suffix (or nova-scribe-append-after-insert "")))
@@ -54,8 +60,10 @@ Set to nil or \"\" for nothing."
             (when nova-scribe-move-point-after-insert
               (goto-char (+ pos (length text) (length suffix))))))
         (message "nova_scribe: inserted transcription"))
+       ((and result err)
+        (message "nova_scribe: %s" err))
        (t
-        (message "nova_scribe: no transcription found (check *Messages*)"))))))
+        (message "nova_scribe: invalid output (expected JSON result)"))))))
 
 (defun nova-scribe-toggle ()
   "Toggle nova_scribe recording."
@@ -70,7 +78,7 @@ Set to nil or \"\" for nothing."
           (make-process
            :name "nova-scribe"
            :buffer nil
-           :command (list nova-scribe-binary "record")
+           :command (list nova-scribe-binary "record" "--output" "json" "--logging" "none")
            :connection-type 'pipe
            :noquery t
            :filter #'nova-scribe--process-filter
@@ -78,7 +86,7 @@ Set to nil or \"\" for nothing."
     (process-put nova-scribe--proc :insert-marker nova-scribe--insert-marker)
     (process-put nova-scribe--proc :cancelled nil)
     (set-transient-map nova-scribe--recording-map t)
-    (message "nova_scribe: recording... (C-c ; stop, C-g cancel)")))
+    (message "nova_scribe: recording... (C-c : stop, C-g cancel)")))
 
 (defun nova-scribe-cancel ()
   "Cancel active nova_scribe recording."
@@ -100,6 +108,4 @@ Set to nil or \"\" for nothing."
 ;; - keep point where it was:  
 ;;   (setq nova-scribe-move-point-after-insert nil)
 
-
-
-(global-set-key (kbd "C-c ;") #'nova-scribe-toggle)
+(global-set-key (kbd "C-c :") #'nova-scribe-toggle)
