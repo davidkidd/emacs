@@ -273,6 +273,35 @@
               ("C-c 4" . flyspell-correct-wrapper)
               ))
 
+;; Time converter
+(defun my/unix-to-local-time (timestamp)
+  "Convert a Unix TIMESTAMP string into a readable local date and time.
+If TIMESTAMP is empty, displays the current local time.
+If a timestamp is provided, appends the time difference from now."
+  (interactive "sEnter Unix Timestamp (leave empty for current time): ")
+  (if (string-empty-p timestamp)
+      ;; Scenario A: Empty input -> Just print current time
+      (message "Local time: %s" (format-time-string "%Y-%m-%d-%H:%M" (current-time)))
+    
+    ;; Scenario B: Timestamp provided -> Calculate differences
+    (let* ((target-secs (string-to-number timestamp))
+           (current-secs (float-time (current-time)))
+           (diff-secs (abs (- target-secs current-secs)))
+           
+           ;; Proper math to break down total seconds
+           (hours (truncate (/ diff-secs 3600)))
+           (minutes (truncate (/ (mod diff-secs 3600) 60)))
+           (remaining-secs (mod (truncate diff-secs) 60))
+           
+           ;; Determine if the target time is in the past or the future
+           (direction (if (< target-secs current-secs) "ago" "from now"))
+           
+           (formatted-time (format-time-string "%Y-%m-%d %H:%M:%S" (seconds-to-time target-secs))))
+      
+      (message "Local time: %s (%d:%d:%d %s)" 
+               formatted-time hours minutes remaining-secs direction))))
+
+
 ;;; Tools
 (use-package rg
   :config
