@@ -54,7 +54,7 @@ If nil, the implicit default of 100 is used.")
 This is opinionated and may partially override theme colours.")
 
 (defvar my/scratch-base
-";; scratch"
+";; scratch\n"
   "Base text shown in *scratch* for init.")
 
 (defvar my/keybinds
@@ -338,6 +338,11 @@ state, theme state, font state, and extra init loading controls."
         ring-bell-function #'ignore
         delete-by-moving-to-trash t
         initial-scratch-message my/scratch-base)
+  ;; `indent-tabs-mode` and `tab-width` are buffer-local, so set their
+  ;; defaults here instead of only affecting whichever buffer is current
+  ;; while `init.el` is loading.
+  (setq-default indent-tabs-mode nil
+                tab-width 4)
   (fset 'yes-or-no-p #'y-or-n-p))
 
 (my/safely "minor modes"
