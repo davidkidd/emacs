@@ -220,7 +220,6 @@
   :after eca-chat
   :init
   ;; Force ECA to always use this model regardless of server defaultModel.
-  (setq eca-chat-custom-model "openai/gpt-5.4")
   :config
   (defun my/eca-chat--yank-considering-image-maybe (orig-fn &rest args)
     "In terminal Emacs, bypass ECA's clipboard probing and run the original yank func."
