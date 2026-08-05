@@ -63,7 +63,7 @@ This is opinionated and may partially override theme colours.")
     ("C-\\"     . execute-extended-command)
     ("C-c C-a"  . mark-whole-buffer)
     ("C-c a"    . mark-whole-buffer)
-    ("C-M-l"    . duplicate-dwim)
+    ("C-M-l"    . my/duplicate-dwim)
     ("C-M-h"    . my/mark-defun)
     ("C-a"      . my/c-a-smart)
 
@@ -78,7 +78,7 @@ This is opinionated and may partially override theme colours.")
     ("C-c SPC"  . my/switch-buffer-or-recent)
     ("C-c b"    . switch-to-buffer)
 
-    ("C-c w"    . copy-current-line)
+    ("C-c w"    . my/copy-current-line)
 
     ;; Word motion
     ("C-."      . forward-word)
@@ -91,8 +91,8 @@ This is opinionated and may partially override theme colours.")
     ("C-|"      . my/menu)
 
     ;; Dired
-    ("C-c d d"  . open-dired-in-current-directory)
-    ("C-c d s"  . dired-dual-pane)
+    ("C-c d d"  . my/open-dired-in-current-directory)
+    ("C-c d s"  . my/dired-dual-pane)
     )
   "Global keybindings for init.")
 
@@ -349,7 +349,7 @@ state, theme state, font state, and extra init loading controls."
   (electric-pair-mode 1)
   (delete-selection-mode 1))
 
-(defun duplicate-dwim ()
+(defun my/duplicate-dwim ()
   "Duplicate current line, or active region if any."
   (interactive)
   (if (use-region-p)
@@ -535,7 +535,7 @@ state, theme state, font state, and extra init loading controls."
 
 ;; General helpers
 
-(defun copy-current-line ()
+(defun my/copy-current-line ()
   "Copy the current line into the kill ring."
   (interactive)
   (save-excursion
@@ -596,7 +596,7 @@ state, theme state, font state, and extra init loading controls."
 ;; Prefer external ls (GNU ls) when available
 (setq ls-lisp-use-insert-directory-program t)
 
-(defun open-dired-in-current-directory ()
+(defun my/open-dired-in-current-directory ()
   "Open Dired in the directory of the current buffer’s file (or `default-directory')."
   (interactive)
   (if buffer-file-name
@@ -604,7 +604,7 @@ state, theme state, font state, and extra init loading controls."
     (dired default-directory)))
 
 ;; Copy absolute path(s) of marked files; with no marks, copy file at point.
-(defun dired-copy-path-at-point ()
+(defun my/dired-copy-path-at-point ()
   "Copy absolute path(s) to kill-ring.
 If files are marked, copy all marked. Otherwise, copy file at point."
   (interactive)
@@ -613,7 +613,7 @@ If files are marked, copy all marked. Otherwise, copy file at point."
     (kill-new (mapconcat #'identity files "\n"))
     (message "Copied %d path(s)" (length files))))
 
-(defun dired-dual-pane (&optional dir)
+(defun my/dired-dual-pane (&optional dir)
   "Open a two-pane vertical split, both panes in Dired on DIR (or current `default-directory')."
   (interactive)
   (let ((dir (file-name-as-directory (expand-file-name (or dir default-directory)))))
@@ -624,7 +624,7 @@ If files are marked, copy all marked. Otherwise, copy file at point."
     (dired dir)
     (other-window 1)))
 
-(defun dired-dual-pane-to-this ()
+(defun my/dired-dual-pane-to-this ()
   "In Dired, open directory under point in the other pane.
 If there isn’t a two-window setup yet, create one."
   (interactive)
@@ -645,7 +645,7 @@ If there isn’t a two-window setup yet, create one."
       (dired target)
       (other-window 1))))
 
-(defun dired-execute-file ()
+(defun my/dired-execute-file ()
   "Run the file at point fully detached (new session; no stdio).
 Prefers `setsid -f`, falls back to `nohup`, otherwise starts normally."
   (interactive)
@@ -672,7 +672,35 @@ Prefers `setsid -f`, falls back to `nohup`, otherwise starts normally."
           (start-process "dired-detached" nil file)))))
     (message "Launched: %s" base)))
 
-(defun dired-open-containing-dir ()
+(defun my/dired-activate-file ()
+  "Activate the file at point like a desktop icon.
+Visit directories, execute executable files, and open other files with the
+system's associated application."
+  (interactive)
+  (let ((file (dired-get-file-for-visit)))
+    (unless (and file (file-exists-p file))
+      (user-error "No file at point"))
+    (cond
+     ((file-directory-p file)
+      (dired-find-file))
+     ((file-executable-p file)
+      (my/dired-execute-file))
+     ((eq system-type 'windows-nt)
+      (w32-shell-execute "open" (convert-standard-filename file))
+      (message "Opened: %s" (file-name-nondirectory file)))
+     ((eq system-type 'darwin)
+      (start-process "dired-open" nil "open" file)
+      (message "Opened: %s" (file-name-nondirectory file)))
+     ((executable-find "xdg-open")
+      (start-process "dired-open" nil "xdg-open" file)
+      (message "Opened: %s" (file-name-nondirectory file)))
+     ((executable-find "gio")
+      (start-process "dired-open" nil "gio" "open" file)
+      (message "Opened: %s" (file-name-nondirectory file)))
+     (t
+      (user-error "No system opener found (tried xdg-open and gio)")))))
+
+(defun my/dired-open-containing-dir ()
   "Open the current file’s directory with point on the file.
 Works from regular or virtual Dired, guarding when file is missing."
   (interactive)
@@ -684,9 +712,10 @@ Works from regular or virtual Dired, guarding when file is missing."
 (with-eval-after-load 'dired
   (define-key dired-mode-map (kbd "h") #'dired-up-directory)
   (define-key dired-mode-map (kbd "l") #'dired-find-file)
-  (define-key dired-mode-map (kbd "W") #'dired-copy-path-at-point)
-  (define-key dired-mode-map (kbd "C-c d o") #'dired-dual-pane-to-this)
-  (define-key dired-mode-map (kbd "C-c x") #'dired-execute-file))
+  (define-key dired-mode-map (kbd "W") #'my/dired-copy-path-at-point)
+  (define-key dired-mode-map (kbd "C-c d o") #'my/dired-dual-pane-to-this)
+  (define-key dired-mode-map (kbd "C-c x") #'my/dired-activate-file)
+  (define-key dired-mode-map (kbd "C-c X") #'my/dired-execute-file))
 
 ;; ---------------------------------------------------------------------
 ;; Keybind helpers
