@@ -712,6 +712,7 @@ Works from regular or virtual Dired, guarding when file is missing."
 (with-eval-after-load 'dired
   (define-key dired-mode-map (kbd "h") #'dired-up-directory)
   (define-key dired-mode-map (kbd "l") #'dired-find-file)
+  (define-key dired-mode-map (kbd "<S-return>") #'my/dired-activate-file)
   (define-key dired-mode-map (kbd "W") #'my/dired-copy-path-at-point)
   (define-key dired-mode-map (kbd "C-c d o") #'my/dired-dual-pane-to-this)
   (define-key dired-mode-map (kbd "C-c x") #'my/dired-activate-file)
