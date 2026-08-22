@@ -593,6 +593,10 @@ state, theme state, font state, and extra init loading controls."
       dired-kill-when-opening-new-dired-buffer t
       dired-dwim-target t)
 
+(add-hook 'dired-mode-hook
+          (lambda ()
+            (setq-local truncate-lines t)))
+
 ;; Prefer external ls (GNU ls) when available
 (setq ls-lisp-use-insert-directory-program t)
 
