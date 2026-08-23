@@ -322,11 +322,13 @@ If a timestamp is provided, appends the time difference from now."
    t t))
 
 (defun my/quick-install--exec-quote (path)
-  "Quote PATH as one argument in a Desktop Entry Exec field."
-  (concat "\""
-          (replace-regexp-in-string
-           "[\\\\\"`$]" "\\\\\\&" path)
-          "\""))
+  "Format PATH as one argument in a Desktop Entry Exec field."
+  (if (string-match-p "\\`[[:alnum:]_./+:-]+\\'" path)
+      path
+    (concat "\""
+            (replace-regexp-in-string
+             "[\\\\\"`$]" "\\\\\\&" path)
+            "\"")))
 
 (defun my/quick-install--yes-by-default-p (prompt)
   "Ask PROMPT as a yes-or-no question whose default is yes."
@@ -506,6 +508,137 @@ If a timestamp is provided, appends the time difference from now."
         (my/quick-install--refresh-desktop-database)
         (message "Removed %d orphaned desktop app%s"
                  (length orphans) (if (= (length orphans) 1) "" "s"))))))
+
+(defun my/desktop-launch--desktop-directories ()
+  "Return XDG application directories in user-precedence order."
+  (let* ((data-home (or (getenv "XDG_DATA_HOME")
+                        (expand-file-name "~/.local/share")))
+         (data-dirs (split-string
+                     (or (getenv "XDG_DATA_DIRS")
+                         "/usr/local/share:/usr/share")
+                     path-separator t))
+         (directories
+          (append
+           (list (expand-file-name "applications" data-home)
+                 (expand-file-name
+                  "~/.local/share/flatpak/exports/share/applications"))
+           (mapcar (lambda (dir) (expand-file-name "applications" dir))
+                   data-dirs)
+           (list "/var/lib/flatpak/exports/share/applications"))))
+    (seq-uniq directories #'string=)))
+
+(defun my/desktop-launch--desktop-id (file directory)
+  "Return the desktop ID for FILE relative to DIRECTORY."
+  (replace-regexp-in-string
+   "/" "-" (file-relative-name file directory) t t))
+
+(defun my/desktop-launch--desktop-boolean-p (file key)
+  "Return non-nil when desktop entry FILE has boolean KEY set to true."
+  (string-equal-ignore-case
+   (or (my/quick-install--desktop-value file key) "") "true"))
+
+(defun my/desktop-launch--desktop-visible-p (file)
+  "Return non-nil when FILE describes a visible launchable application."
+  (let ((type (my/quick-install--desktop-value file "Type"))
+        (try-exec (my/quick-install--desktop-value file "TryExec")))
+    (and (string= type "Application")
+         (not (my/desktop-launch--desktop-boolean-p file "Hidden"))
+         (not (my/desktop-launch--desktop-boolean-p file "NoDisplay"))
+         (or (not try-exec)
+             (if (file-name-absolute-p try-exec)
+                 (file-executable-p try-exec)
+               (executable-find try-exec))))))
+
+(defun my/desktop-launch--unique-label (base identity used-labels)
+  "Return a unique label from BASE and IDENTITY, recording it in USED-LABELS."
+  (let ((label base))
+    (when (gethash label used-labels)
+      (setq label (format "%s — %s" base identity)))
+    (let ((suffix 2)
+          (candidate label))
+      (while (gethash candidate used-labels)
+        (setq candidate (format "%s (%d)" label suffix)
+              suffix (1+ suffix)))
+      (puthash candidate t used-labels)
+      candidate)))
+
+(defun my/desktop-launch--category-prefix (file)
+  "Return the declared category prefix for desktop entry FILE."
+  (let* ((raw (my/quick-install--desktop-value file "Categories"))
+         (categories (and raw (split-string raw ";" t))))
+    (if categories
+        (format "[%s] " (string-join categories ", "))
+      "")))
+
+(defun my/desktop-launch--desktop-candidates (used-labels)
+  "Return visible XDG apps, recording candidate labels in USED-LABELS."
+  (let ((seen-ids (make-hash-table :test #'equal))
+        candidates)
+    (dolist (directory (my/desktop-launch--desktop-directories))
+      (when (file-directory-p directory)
+        (dolist (file (directory-files-recursively directory "\\.desktop\\'"))
+          (let ((desktop-id (my/desktop-launch--desktop-id file directory)))
+            (unless (gethash desktop-id seen-ids)
+              (puthash desktop-id t seen-ids)
+              (when (my/desktop-launch--desktop-visible-p file)
+                (let* ((name (or (my/quick-install--desktop-value file "Name")
+                                 (file-name-base file)))
+                       (base-label
+                        (concat (my/desktop-launch--category-prefix file) name))
+                       (label (my/desktop-launch--unique-label
+                               base-label desktop-id used-labels)))
+                  (push (cons label
+                              (list :kind 'desktop :path file :id desktop-id))
+                        candidates))))))))
+    candidates))
+
+(defun my/desktop-launch--candidates ()
+  "Return visible XDG desktop applications sorted by display name."
+  (let* ((used-labels (make-hash-table :test #'equal))
+         (candidates (my/desktop-launch--desktop-candidates used-labels)))
+    (sort candidates (lambda (left right) (string-lessp (car left) (car right))))))
+
+(defun my/desktop-launch--detached-command (entry)
+  "Return the detached command list needed to launch desktop ENTRY."
+  (unless (eq (plist-get entry :kind) 'desktop)
+    (user-error "Not a desktop application entry"))
+  (let ((path (plist-get entry :path)))
+    (unless (and path (file-readable-p path))
+      (user-error "Desktop entry no longer exists: %s" path))
+    (unless (executable-find "gio")
+      (user-error "Cannot launch desktop entries because gio is unavailable"))
+    (let ((application-command (list "gio" "launch" path)))
+      (if-let ((uwsm-app (executable-find "uwsm-app")))
+          (append (list uwsm-app "--") application-command)
+        application-command))))
+
+(defun my/desktop-launch--detached (entry)
+  "Launch ENTRY independently from the Emacs process lifecycle."
+  (let ((command (my/desktop-launch--detached-command entry)))
+    (if-let ((setsid (executable-find "setsid")))
+        (let ((status (apply #'call-process
+                             setsid nil nil nil "-f" command)))
+          (unless (and (integerp status) (zerop status))
+            (user-error "Unable to detach launcher (setsid status %S)" status)))
+      (let ((process (make-process
+                      :name "my-launch"
+                      :command command
+                      :connection-type 'pipe
+                      :buffer nil
+                      :noquery t)))
+        (set-process-query-on-exit-flag process nil)))
+    (message "Launched %s" (plist-get entry :path))))
+
+(defun my/desktop-launch ()
+  "Select and launch a visible XDG desktop application."
+  (interactive)
+  (let* ((candidates (my/desktop-launch--candidates))
+         (choice (and candidates
+                      (completing-read "Desktop app: " candidates nil t)))
+         (entry (and choice (cdr (assoc choice candidates)))))
+    (unless entry
+      (user-error "No launchable desktop applications were found"))
+    (my/desktop-launch--detached entry)))
 
 (with-eval-after-load 'dired
   (define-key dired-mode-map (kbd "C-c d r") #'my/dired-register-desktop-app)
