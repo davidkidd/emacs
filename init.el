@@ -597,6 +597,18 @@ state, theme state, font state, and extra init loading controls."
           (lambda ()
             (setq-local truncate-lines t)))
 
+(defun my/dired-next-line-and-preview ()
+  "Move to the next Dired line and display the file there."
+  (interactive)
+  (dired-next-line 1)
+  (dired-display-file))
+
+(defun my/dired-previous-line-and-preview ()
+  "Move to the previous Dired line and display the file there."
+  (interactive)
+  (dired-previous-line 1)
+  (dired-display-file))
+
 ;; Prefer external ls (GNU ls) when available
 (setq ls-lisp-use-insert-directory-program t)
 
@@ -716,6 +728,8 @@ Works from regular or virtual Dired, guarding when file is missing."
 (with-eval-after-load 'dired
   (define-key dired-mode-map (kbd "h") #'dired-up-directory)
   (define-key dired-mode-map (kbd "l") #'dired-find-file)
+  (define-key dired-mode-map (kbd "C-n") #'my/dired-next-line-and-preview)
+  (define-key dired-mode-map (kbd "C-p") #'my/dired-previous-line-and-preview)
   (define-key dired-mode-map (kbd "<S-return>") #'my/dired-activate-file)
   (define-key dired-mode-map (kbd "W") #'my/dired-copy-path-at-point)
   (define-key dired-mode-map (kbd "C-c d o") #'my/dired-dual-pane-to-this)
