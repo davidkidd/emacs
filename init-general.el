@@ -258,7 +258,68 @@
 (setq eca-chat-trust-use-icon-library nil)
 
 ;; Agent shell
-(use-package agent-shell)
+(defvar launch-agent-on-startup nil)
+(defvar-local my/agent-shell-resume-window nil
+  "Window to reuse when this resumed shell is first displayed.")
+
+(defun my/quick-launch-agent-shell ()
+  "Start a fresh Codex shell with medium reasoning, without selection prompts."
+  (interactive)
+  (require 'agent-shell)
+  (require 'agent-shell-openai)
+  (let ((agent-shell-session-strategy 'new)
+        (config (agent-shell-openai-make-codex-config)))
+    (map-put! config :default-config-options
+              (lambda () '(("reasoning_effort" . "medium"))))
+    (agent-shell-start :config config)))
+
+(defun my/resume-agent-shell ()
+  "Pick a Codex conversation and reuse the existing Agent Shell pane."
+  (interactive)
+  (require 'agent-shell)
+  (require 'agent-shell-openai)
+  (let* ((agent-shell-session-strategy 'prompt)
+         (window (if (derived-mode-p 'agent-shell-mode)
+                     (selected-window)
+                   (seq-some (lambda (buffer) (get-buffer-window buffer))
+                             (agent-shell-buffers))))
+         (buffer (agent-shell-start :config (agent-shell-openai-make-codex-config))))
+    ;; The picker finishes asynchronously; remember the pane in the new buffer.
+    (with-current-buffer buffer
+      (setq-local my/agent-shell-resume-window window))))
+
+(defun my/launch-agent-on-startup ()
+  "Open Agent Shell to the right when `launch-agent-on-startup' is non-nil."
+  (when launch-agent-on-startup
+    (require 'agent-shell)
+    (select-window (split-window-right))
+    (my/quick-launch-agent-shell)))
+
+(add-hook 'window-setup-hook #'my/launch-agent-on-startup)
+
+(defun my/agent-shell-display-buffer (buffer alist)
+  "Display BUFFER and dedicate its window, using display action ALIST."
+  (when-let* ((window (or (let ((target (buffer-local-value
+                                       'my/agent-shell-resume-window buffer)))
+                           (when (window-live-p target)
+                             (set-window-dedicated-p target nil)
+                             (set-window-buffer target buffer)
+                             (with-current-buffer buffer
+                               (setq my/agent-shell-resume-window nil))
+                             target))
+                         (display-buffer-reuse-window buffer alist)
+                         (display-buffer-same-window buffer alist)
+                         (display-buffer-pop-up-window buffer alist))))
+    (set-window-dedicated-p window t)
+    window))
+
+(use-package agent-shell
+  :custom
+  (agent-shell-show-welcome-message nil)
+  (agent-shell-header-style 'text)
+  ;; Keep other buffers from replacing the Agent Shell pane.
+  (agent-shell-display-action
+   '(my/agent-shell-display-buffer)))
 
 ;; Flyspell popup correction menu
 
@@ -659,4 +720,3 @@ If a timestamp is provided, appends the time difference from now."
   :hook (prog-mode . flycheck-mode))
 
 (use-package magit)
-
