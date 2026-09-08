@@ -597,49 +597,6 @@ state, theme state, font state, and extra init loading controls."
           (lambda ()
             (setq-local truncate-lines t)))
 
-(defvar my/dired-preview-buffer nil
-  "Buffer created by the most recent Dired preview command.")
-
-(defun my/dired-display-file-as-preview ()
-  "Display the Dired file at point, replacing the previous preview buffer.
-Preserve preview buffers that have been modified and file or Dired buffers
-that were already open before being previewed."
-  (let* ((file (dired-get-filename nil t))
-         (directory-p (and file (file-directory-p file)))
-         (previous my/dired-preview-buffer)
-         (existing (and file
-                        (if directory-p
-                            (dired-find-buffer-nocreate
-                             (file-name-as-directory
-                              (expand-file-name file)))
-                          (get-file-buffer file))))
-         (current (and file
-                       (if directory-p
-                           (dired-noselect file)
-                         (find-file-noselect file)))))
-    (when current
-      (display-buffer current))
-    (when (and (buffer-live-p previous)
-               (not (eq previous current))
-               (not (buffer-modified-p previous)))
-      (kill-buffer previous))
-    (setq my/dired-preview-buffer
-          (and current
-               (or (null existing) (eq current previous))
-               current))))
-
-(defun my/dired-next-line-and-preview ()
-  "Move to the next Dired line and preview the file there."
-  (interactive)
-  (dired-next-line 1)
-  (my/dired-display-file-as-preview))
-
-(defun my/dired-previous-line-and-preview ()
-  "Move to the previous Dired line and preview the file there."
-  (interactive)
-  (dired-previous-line 1)
-  (my/dired-display-file-as-preview))
-
 ;; Prefer external ls (GNU ls) when available
 (setq ls-lisp-use-insert-directory-program t)
 
@@ -759,8 +716,6 @@ Works from regular or virtual Dired, guarding when file is missing."
 (with-eval-after-load 'dired
   (define-key dired-mode-map (kbd "h") #'dired-up-directory)
   (define-key dired-mode-map (kbd "l") #'dired-find-file)
-  (define-key dired-mode-map (kbd "C-n") #'my/dired-next-line-and-preview)
-  (define-key dired-mode-map (kbd "C-p") #'my/dired-previous-line-and-preview)
   (define-key dired-mode-map (kbd "<S-return>") #'my/dired-activate-file)
   (define-key dired-mode-map (kbd "W") #'my/dired-copy-path-at-point)
   (define-key dired-mode-map (kbd "C-c d o") #'my/dired-dual-pane-to-this)
