@@ -31,5 +31,14 @@
         (or (executable-find "fd")
             (executable-find "fdfind"))))
 
+(defun fd-name-dired-everything (dir pattern)
+  "Search DIR for names matching PATTERN, including hidden and ignored files.
+PATTERN is an fd regular expression.  Display results in Dired."
+  (interactive "DFd-name everything (directory): \nsFd-name everything (filename regexp): ")
+  (require 'fd-dired)
+  (fd-dired dir (concat "--hidden --no-ignore -- "
+                        (shell-quote-argument pattern))))
+
+
 (provide 'dired-setup)
 ;;; dired-setup.el ends here
