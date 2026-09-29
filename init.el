@@ -713,7 +713,28 @@ Works from regular or virtual Dired, guarding when file is missing."
         (dired-jump nil file)
       (user-error "No file at point"))))
 
+;; Share one details setting across Dired buffers for this session.
+(defvar my/dired-details-hidden nil
+  "Whether to hide details in all Dired buffers this session.")
+
+(defun my/dired-apply-details ()
+  "Apply the session's details setting to the current Dired buffer."
+  (dired-hide-details-mode (if my/dired-details-hidden 1 -1)))
+
+(defun my/dired-toggle-details-global ()
+  "Toggle details in all existing and future Dired buffers."
+  (interactive)
+  (setq my/dired-details-hidden (not my/dired-details-hidden))
+  (dolist (buffer (buffer-list))
+    (with-current-buffer buffer
+      (when (derived-mode-p '(dired-mode wdired-mode))
+        (my/dired-apply-details)))))
+
+(add-hook 'dired-mode-hook #'my/dired-apply-details)
+
 (with-eval-after-load 'dired
+  ;; Replace the buffer-local stock binding with the global toggle.
+  (define-key dired-mode-map (kbd "(") #'my/dired-toggle-details-global)
   (define-key dired-mode-map (kbd "h") #'dired-up-directory)
   (define-key dired-mode-map (kbd "l") #'dired-find-file)
   (define-key dired-mode-map (kbd "<S-return>") #'my/dired-activate-file)
