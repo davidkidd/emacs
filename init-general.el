@@ -140,13 +140,23 @@
 
 ;; Consult commands
 (use-package consult
-  :bind (("C-s"     . consult-line)
-         ("C-S-s"   . consult-line-multi)
+  :bind (("C-S-s"   . consult-line-multi)
          ("C-c b"   . consult-buffer)
          ("C-c SPC" . consult-buffer)
          ("M-y"     . consult-yank-pop)
          ("C-c r"   . consult-ripgrep)
          ("C-c i"   . consult-imenu)))
+
+;; Isearch with Avy jumps and Consult for longer searches.
+(use-package ace-isearch
+  :demand t
+  :bind (("C-s" . isearch-forward))
+  :config
+  (setq ace-isearch-function 'avy-goto-word-1
+        ace-isearch-input-length 4
+        ace-isearch-function-from-isearch 'ace-isearch-consult-line-from-isearch)
+  (define-key isearch-mode-map (kbd "C-'") #'ace-isearch-jump-during-isearch)
+  (global-ace-isearch-mode 1))
 
 ;; Context actions for minibuffer candidates / thing at point
 (use-package embark
