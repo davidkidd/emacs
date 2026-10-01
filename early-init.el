@@ -1,6 +1,8 @@
 ;;; early-init.el --- Normal startup or Embasic terminal Emacs -*- lexical-binding: t; -*-
 ;;; Commentary:
 ;; Emacs 30+: emacs -nw -basic [file ...]
+;; Or reuse/start the embasic server: emacsclient -s embasic \
+;;   -a "emacs --daemon=embasic -basic" -t [file ...]
 ;; Basic mode uses only built-ins and skips package, site and user init.
 ;; Open a directory for Dired; C-c d creates a two-pane file manager.
 ;; Do not use -q or -Q: those options skip this file too.
@@ -10,8 +12,8 @@
 
 (defvar embasic-mode
   (and (not noninteractive)
-       (not (daemonp))
-       (null initial-window-system)
+       (or (equal (daemonp) "embasic")
+           (and (not (daemonp)) (null initial-window-system)))
        ;; Emacs consumes -nw before early-init; check the resulting
        ;; terminal startup state instead.  Respect -- for literal filenames.
        (let ((args (cdr command-line-args)) found)
@@ -19,7 +21,7 @@
            (when (equal (pop args) "-basic")
              (setq found t)))
          found))
-  "Non-nil when -basic selects the minimal terminal configuration.")
+  "Non-nil when -basic selects the terminal or named Embasic daemon configuration.")
 
 (when embasic-mode
   ;; Remove our switch before Emacs processes file arguments, preserving
@@ -53,6 +55,10 @@
         dired-dwim-target t
         select-enable-primary t
         select-enable-clipboard t)
+  ;; Avoid the synchronous terminal capability probe (up to two seconds),
+  ;; which can redisplay *scratch* before command-line files are opened.
+  ;; Keep OSC 52 clipboard support without probing for extra key protocols.
+  (setq xterm-extra-capabilities '(getSelection setSelection))
   (mapc #'require '(dired text-mode))
   (dolist (mode '(delete-selection-mode fido-vertical-mode which-key-mode))
     (funcall mode 1))

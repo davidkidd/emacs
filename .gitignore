@@ -5,6 +5,9 @@
 !init*.el
 !early-init.el
 
+# Embasic shell shortcuts
+!embasic.bash
+
 # Unignore files in the custom folder
 !custom/novarange.el
 
