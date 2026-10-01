@@ -138,6 +138,18 @@
           (command (styles orderless))
           (buffer (styles orderless)))))
 
+(defun consult-fd-all (&optional dir initial)
+  "Like `consult-fd', but include hidden and ignored files.
+Adds --hidden and --no-ignore for this invocation only, leaving
+`consult-fd-args' and `consult-fd' itself unchanged."
+  (interactive)
+  (let ((consult-fd-args
+         (append (if (listp consult-fd-args)
+                      consult-fd-args
+                    (list consult-fd-args))
+                 '("--hidden" "--no-ignore"))))
+    (consult-fd dir initial)))
+
 ;; Consult commands
 (use-package consult
   :bind (("C-S-s"   . consult-line-multi)
@@ -145,6 +157,7 @@
          ("C-c SPC" . consult-buffer)
          ("M-y"     . consult-yank-pop)
          ("C-c r"   . consult-ripgrep)
+         ("C-c f"   . consult-fd-all)
          ("C-c i"   . consult-imenu)))
 
 ;; Isearch with Avy jumps and Consult for longer searches.
