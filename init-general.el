@@ -311,12 +311,28 @@ Adds --hidden and --no-ignore for this invocation only, leaving
     (with-current-buffer buffer
       (setq-local my/agent-shell-resume-window window))))
 
+(defcustom my/agent-shell-solo nil
+  "When non-nil, Agent Shell takes over the sole window at startup.
+Otherwise it opens to the right of the initial window."
+  :type 'boolean
+  :group 'my-init
+  :initialize #'custom-initialize-default)
+
 (defun my/launch-agent-on-startup ()
-  "Open Agent Shell to the right when `launch-agent-on-startup' is non-nil."
+  "Open Agent Shell at startup when `launch-agent-on-startup' is non-nil.
+With `my/agent-shell-solo' it replaces the initial window, so the
+session starts in Agent Shell with no scratch buffer beside it."
   (when launch-agent-on-startup
     (require 'agent-shell)
-    (select-window (split-window-right))
-    (my/quick-launch-agent-shell)))
+    (if my/agent-shell-solo
+        (progn
+          (delete-other-windows)
+          (with-current-buffer (my/quick-launch-agent-shell)
+            (when-let ((scratch (get-buffer "*scratch*")))
+              (unless (get-buffer-window scratch)
+                (kill-buffer scratch)))))
+      (select-window (split-window-right))
+      (my/quick-launch-agent-shell))))
 
 (add-hook 'window-setup-hook #'my/launch-agent-on-startup)
 
@@ -336,6 +352,7 @@ Adds --hidden and --no-ignore for this invocation only, leaving
     (set-window-dedicated-p window t)
     window))
 
+;; agent-shell requires transient itself; it is loaded via init-packages.el.
 (use-package agent-shell
   :custom
   (agent-shell-show-welcome-message nil)

@@ -875,6 +875,18 @@ If pressed again (or if line is blank), go to column 0."
   :group 'my-init
   :initialize #'custom-initialize-default)
 
+(defcustom my/extra-init-override nil
+  "When non-nil, load these init files instead of `my/init-files'.
+
+Normally nil, so `my/init-files' decides.  A launcher can set this from
+the command line to start a session with a different set of init files,
+for example: emacs -q --eval \"(setq my/extra-init-override MY-LIST)\" -l init.el
+Set before init.el is loaded: custom-file is read while init.el runs, and
+anything set afterwards is too late."
+  :type '(repeat (list file boolean))
+  :group 'my-init
+  :initialize #'custom-initialize-default)
+
 (defvar my/inhibit-extra-init nil
   "When non-nil, skip loading extra init files for this session only.")
 
@@ -902,7 +914,7 @@ If pressed again (or if line is blank), go to column 0."
  ((bound-and-true-p my/inhibit-extra-init)
   (message "Extra init loading disabled for this session"))
  ((bound-and-true-p my/enable-extra-init)
-  (dolist (entry my/init-files)
+  (dolist (entry (or my/extra-init-override my/init-files))
     (let ((filename (car entry))
           (enabled  (cadr entry)))
       (if enabled
