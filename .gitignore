@@ -3,6 +3,7 @@
 
 # Unignore our init files
 !init*.el
+!early-init.el
 
 # Unignore files in the custom folder
 !custom/novarange.el
